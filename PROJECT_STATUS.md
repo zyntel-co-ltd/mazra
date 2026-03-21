@@ -26,7 +26,7 @@ Product plan: `docs/MAZRA_PLAN.md`.
 - [x] **`MAZRA_FACILITY_ID`** env — filters `sim_config` (required when multiple facilities)
 - [x] **`POST /api/sim/reset`** — delete synthetic rows (FK order) + re-seed `MAZRA_SEED_DAYS`
 - [x] **`GET/POST /api/sim/run`** — GET for **Vercel Cron** (Bearer `MAZRA_SIM_SECRET` or `CRON_SECRET`)
-- [x] **`vercel.json`** — daily cron `0 5 * * *` UTC (adjust for EAT as needed)
+- [x] **`vercel.json`** — daily cron `5 0 * * *` (00:05 UTC; adjust for EAT)
 - [x] **Seed SQL docs** — `docs/seeds/nakasero_mazra_control_plane.sql`, `docs/seeds/nakasero_kanta_prerequisites.sql`
 - [x] **Kanta migration (sibling repo)** — `kanta/supabase/migrations/20260321140000_mazra_generated_flags.sql`
 
