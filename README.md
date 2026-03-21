@@ -1,8 +1,10 @@
 # Mazra
 
-**Mazra** (مزرعة — “farm” / cultivated field) is a hospital **data simulation engine**: realistic, deterministic streams (TAT, revenue, equipment, cold chain, QC, staff) for demos, training, and testing. It targets the **same Postgres tables** Kanta reads — see `docs/MAZRA_PLAN.md`.
+**Mazra** (مزرعة — “farm” / cultivated field) is a hospital **data simulation engine**: realistic, deterministic streams (TAT, revenue, equipment, cold chain, QC, staff) for demos, training, and testing.
 
-First deployment target: **Kanta demo** at `mazra.dev/kanta` (per product plan).
+**Architecture:** Mazra uses its **own** Supabase (control plane: `sim_config`, `sim_generation_log`, `mazra_clients`, `mazra_usage`). `facility_id` is a UUID Mazra tracks — **no FK** to any customer `hospitals` table. For each client (e.g. Kanta), a row in **`mazra_clients`** stores **`target_db_url`** (that project’s Postgres/Supabase connection string); the engine connects there and writes into **that** database’s Kanta-shaped tables.
+
+See `docs/MAZRA_PLAN.md` for the full product plan. **Living status:** `PROJECT_STATUS.md`.
 
 ## Repo layout
 
@@ -10,8 +12,10 @@ First deployment target: **Kanta demo** at `mazra.dev/kanta` (per product plan).
 |------|---------|
 | `src/engine/` | TypeScript simulation modules (`generateDay` per domain) |
 | `src/engine/rng.ts` | Seeded mulberry32 PRNG |
-| `scripts/seed.ts` | CLI seeder (stub → DB writes in Phase 1) |
-| `supabase/migrations/` | SQL for `sim_config`, `sim_generation_log` (run on **Kanta** Supabase) |
+| `scripts/seed.ts` | CLI seeder → `sim_generation_log` (+ optional Kanta `test_requests`) |
+| `src/app/api/health` | Liveness JSON |
+| `src/app/api/sim/run` | POST + Bearer secret — same as cron/seed run |
+| `supabase/migrations/` | SQL for Mazra control-plane tables (run on the **Mazra** Supabase project) |
 | `docs/MAZRA_PLAN.md` | Full plan exported from `MAZRA_PLAN.docx` |
 
 ## Commands
@@ -47,21 +51,21 @@ Do these yourself (not automated here).
    ```
 3. **Branch protection** (optional): require PR reviews on `main`.
 
-### 2. Supabase (same project as Kanta)
+### 2. Supabase (Mazra project)
 
-1. Open your **Kanta** Supabase project.
-2. Run migration `supabase/migrations/20260321120000_mazra_sim_tables.sql` (SQL editor or `supabase db push` if you link this repo’s config).
-3. Insert a `sim_config` row for your **demo facility** once `facility_id` exists.
-4. Later: Edge Function `mazra-daily` + `pg_cron` (plan §8) — not in this scaffold.
+1. Open your **Mazra** Supabase project (separate from Kanta).
+2. Run `supabase/migrations/20260321120000_mazra_sim_tables.sql` (SQL editor or `supabase db push`).
+3. Add **`mazra_clients`** rows (e.g. Kanta) with **`target_db_url`** pointing at the **Kanta** database where synthetic rows should be inserted.
+4. Add **`sim_config`** rows with the **`facility_id`** UUID that exists in Kanta’s `hospitals` (or equivalent) — Mazra only stores that UUID; it does not enforce a foreign key.
+5. Later: Edge Function `mazra-daily` + `pg_cron` (plan §8) — not in this scaffold.
 
 ### 3. Vercel
 
 1. [vercel.com](https://vercel.com) → **Add New Project** → Import the **mazra** Git repo.
 2. Framework: **Next.js**; root directory: repo root (or `mazra` if the monorepo root is higher).
 3. **Environment variables** (Production + Preview as needed):
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (or publishable key)
-   - Server-only secrets when you add APIs: `SUPABASE_SERVICE_ROLE_KEY`, etc.
+   - **Mazra control DB:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Mazra’s own project)
+   - Server-only: `SUPABASE_SERVICE_ROLE_KEY` (Mazra project) plus logic to read **`target_db_url`** and write to client DBs
 4. Deploy. Attach **custom domain** (e.g. `sim.zyntel.net` or path under `mazra.dev` via DNS/Cloudflare as you prefer).
 5. **Cloudflare Zero Trust** (plan): protect admin/reset routes when those exist — same pattern as Kanta admin.
 

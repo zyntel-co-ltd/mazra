@@ -54,9 +54,8 @@ Named configs (analyser breakdown, understaffed haematology, fridge failure, mon
 
 ## 7. Database (Mazra-specific)
 
-- `sim_config`, `sim_generation_log` — Phase 1 (see `supabase/migrations/`).
-- Phase 6: `mazra_clients`, `mazra_usage`.
-- Plan: `mazra_generated` on selected Kanta tables for targeted deletes on reset.
+- **Mazra Supabase (control plane):** `sim_config`, `sim_generation_log`, `mazra_clients`, `mazra_usage` — see `supabase/migrations/`. `facility_id` has **no FK** to customer DBs; `mazra_clients.target_db_url` points at where to write (e.g. Kanta’s Postgres).
+- **Client DB (e.g. Kanta):** generated rows land in existing Kanta-shaped tables; optional future `mazra_generated` flags for targeted reset.
 
 ## 8. Deployment (plan)
 

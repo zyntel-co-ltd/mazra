@@ -1,41 +1,41 @@
 /**
- * CLI seeder stub — Phase 1: validates engine + env; DB backfill in later tasks.
+ * CLI seeder — runs Mazra generation for the last N UTC days.
  *
  * Usage: npm run seed
- * Requires: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (optional for dry run)
+ *
+ * Requires (control plane):
+ *   SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL
+ *   SUPABASE_SERVICE_ROLE_KEY
+ *
+ * Optional (target / Kanta writes):
+ *   MAZRA_WRITE_TO_TARGET=1
+ *   TARGET_SUPABASE_URL + TARGET_SUPABASE_SERVICE_ROLE_KEY
+ *   (or mazra_clients.target_db_url + TARGET_SUPABASE_SERVICE_ROLE_KEY)
+ *
+ * Env:
+ *   MAZRA_SEED_DAYS=90  — default 3
  */
 
-import { generateDay } from "../src/engine";
-import type { SimFacilityConfig } from "../src/engine/types";
+import { runGeneration } from "../src/lib/sim/run-generation";
 
-const demoConfig: SimFacilityConfig = {
-  hospitalName: "Demo Hospital (Mazra)",
-  bedCount: 200,
-  seedString: "kanta-demo-v1",
-  activeScenarios: ["stable_normal"],
-  modifiers: {},
-};
-
-function isoDaysAgo(days: number): string {
+function isoDaysAgo(daysAgo: number): string {
   const d = new Date();
-  d.setUTCDate(d.getUTCDate() - days);
+  d.setUTCDate(d.getUTCDate() - daysAgo);
   return d.toISOString().slice(0, 10);
 }
 
 async function main() {
   const days = Number(process.env.MAZRA_SEED_DAYS ?? "3");
-  console.log(`Mazra seed (stub): last ${days} day(s), config:`, demoConfig.hospitalName);
+  const dates = Array.from({ length: days }, (_, i) => isoDaysAgo(i));
 
-  for (let i = 0; i < days; i++) {
-    const date = isoDaysAgo(i);
-    const events = generateDay(date, demoConfig);
-    console.log(`  ${date}: ${events.length} events (not written to DB yet)`);
-  }
+  console.log(`Mazra seed: ${days} UTC day(s) →`, dates[0], "…", dates.at(-1));
 
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.log(
-      "\nTip: set SUPABASE_SERVICE_ROLE_KEY + SUPABASE_URL to wire Supabase writes in Phase 1."
-    );
+  const result = await runGeneration({ mode: "seed", dates });
+
+  console.log(JSON.stringify(result, null, 2));
+
+  if (result.runsCompleted === 0 && result.errors.length > 0) {
+    process.exitCode = 1;
   }
 }
 
