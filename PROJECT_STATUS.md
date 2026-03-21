@@ -7,37 +7,35 @@
 
 ## What This Project Is
 
-**Mazra** generates realistic, **deterministic** hospital operational data (TAT, revenue, equipment, cold chain, QC, staff) for demos, training, and testing. It is **separate from Kanta**: Mazra has its **own** Supabase (control plane). For each customer (e.g. Kanta), **`mazra_clients.target_db_url`** points at the database where synthetic rows are written (Kanta-shaped tables).
+**Mazra** generates realistic, **deterministic** hospital operational data for demos and testing. **Control plane** = Mazra Supabase (`sim_config`, `mazra_clients`, `sim_generation_log`). **Target** = customer Kanta Supabase; writers use the service role and set **`mazra_generated: true`** so **reset** only removes synthetic rows.
 
-Product plan: `docs/MAZRA_PLAN.md` (from `MAZRA_PLAN.docx`).
+Product plan: `docs/MAZRA_PLAN.md`.
 
 ---
 
 ## Current State
 
-**Status:** Pre-MVP  
-**Phase:** Phase 1 partial — control-plane logging + optional TAT writes to target Supabase
+**Status:** Phase 1 writers (core modules)  
+**Phase:** TAT, revenue, equipment scans, fridge temps, QC runs → Kanta; reset + cron hooks
 
 ### Done
 
-- [x] Next.js 16 app — landing page (`src/app/`), Tailwind 4
-- [x] **Simulation engine** — `src/engine/`: mulberry32 RNG, `generateDay()`, domain stubs; **TAT** emits Kanta-shaped `test_requests` payloads
-- [x] **Control plane integration** — `runGeneration()` reads `sim_config`, writes `sim_generation_log` (Mazra Supabase service role)
-- [x] **CLI seeder** — `npm run seed` — backfills last `MAZRA_SEED_DAYS` (default 3) UTC days
-- [x] **API** — `GET /api/health`, `POST /api/sim/run` (Bearer `MAZRA_SIM_SECRET` or `CRON_SECRET`)
-- [x] **Optional target writes** — `MAZRA_WRITE_TO_TARGET=1` + `TARGET_SUPABASE_*` or `mazra_clients.target_db_url` + service role key → inserts into Kanta **`test_requests`** (skipped when using in-memory demo config with no `sim_config` rows)
-- [x] **Supabase migration (Mazra project)** — `supabase/migrations/20260321120000_mazra_sim_tables.sql`
-- [x] README, `.env.example`, `vercel.json`, `PROJECT_STATUS.md`
+- [x] Engine + `generateDay()` (all domain stubs; TAT emits full payloads)
+- [x] **Writers (Kanta)** — `test_requests`, `revenue_entries`, `scan_events`, `temp_readings`, `qc_runs` with `mazra_generated: true`
+- [x] **`runGeneration()`** — orchestrates writers; `sim_generation_log.rows_by_module` reflects **insert counts**
+- [x] **`MAZRA_FACILITY_ID`** env — filters `sim_config` (required when multiple facilities)
+- [x] **`POST /api/sim/reset`** — delete synthetic rows (FK order) + re-seed `MAZRA_SEED_DAYS`
+- [x] **`GET/POST /api/sim/run`** — GET for **Vercel Cron** (Bearer `MAZRA_SIM_SECRET` or `CRON_SECRET`)
+- [x] **`vercel.json`** — daily cron `0 5 * * *` UTC (adjust for EAT as needed)
+- [x] **Seed SQL docs** — `docs/seeds/nakasero_mazra_control_plane.sql`, `docs/seeds/nakasero_kanta_prerequisites.sql`
+- [x] **Kanta migration (sibling repo)** — `kanta/supabase/migrations/20260321140000_mazra_generated_flags.sql`
 
-### In Progress
+### Not done
 
-- [ ] Nothing actively in flight in-repo
-
-### Planned (see MAZRA_PLAN)
-
-- [ ] **Phase 1+** — Writers for revenue, equipment, fridge, QC, staff; `mazra_generated` flags + reset
-- [ ] **Phase 2+** — Supabase Edge cron, admin UI, scenario modifiers, Cloudflare Zero Trust
-- [ ] **Phase 6** — SaaS onboarding, Flutterwave, `mazra.dev` marketing site
+- [ ] **qc_violations** writer (flags only on `qc_runs` today)
+- [ ] **Admin UI** — scenario toggles, manual run buttons
+- [ ] **Supabase Edge** cron (alternative to Vercel)
+- [ ] **SaaS / billing** (Phase 6)
 
 ---
 
@@ -45,43 +43,22 @@ Product plan: `docs/MAZRA_PLAN.md` (from `MAZRA_PLAN.docx`).
 
 | Layer | Technology | Notes |
 |-------|------------|--------|
-| App | Next.js 16 + TypeScript | Vercel (intended) |
-| Control DB | Supabase PostgreSQL | **Mazra** project — config, clients, usage |
-| Target DB | Customer Postgres (e.g. Supabase) | URL in `mazra_clients.target_db_url` |
-| Engine | Pure TypeScript | Deterministic seeded PRNG |
+| App | Next.js 16 + TypeScript | Vercel |
+| Control DB | Supabase | Mazra project |
+| Target DB | Supabase | Kanta project; `TARGET_SUPABASE_*` + `MAZRA_WRITE_TO_TARGET=1` |
 
 ---
 
-## Environment Status
+## Key env vars
 
-| Environment | URL / command | Status |
-|-------------|----------------|--------|
-| Local app | `http://localhost:3001` (`npm run dev`) | Working |
-| Mazra Supabase | Run migration in **Mazra** project | Manual |
-| Production | Not wired | Create Vercel project + env when ready |
-
----
-
-## Key Files
-
-| Path | Purpose |
-|------|---------|
-| `src/engine/` | RNG + domain generators + `generateDay` |
-| `scripts/seed.ts` | CLI seeder → `runGeneration` |
-| `src/lib/sim/run-generation.ts` | Orchestration: config load, log, optional target inserts |
-| `src/app/api/sim/run/route.ts` | Secured HTTP trigger |
-| `supabase/migrations/` | Control-plane DDL |
-| `docs/MAZRA_PLAN.md` | Full product/implementation plan |
-
----
-
-## Active Issues / Risks
-
-| Item | Notes |
-|------|--------|
-| **Secrets** | `target_db_url` (or pooled URL + service role) is highly sensitive — encrypt at rest / use vault when building admin |
-| **RLS** | Writers must use a role that can insert into client tables without breaking Kanta RLS expectations |
-| **Idempotency** | Reset/re-seed strategy TBD (`mazra_generated` flags on client tables per plan) |
+| Variable | Purpose |
+|----------|---------|
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Mazra control plane |
+| `TARGET_SUPABASE_URL`, `TARGET_SUPABASE_SERVICE_ROLE_KEY` | Kanta writes |
+| `MAZRA_WRITE_TO_TARGET=1` | Enable inserts |
+| `MAZRA_FACILITY_ID` | Single-facility runs / reset |
+| `MAZRA_SEED_DAYS` | CLI seed + reset backfill depth |
+| `MAZRA_SIM_SECRET` / `CRON_SECRET` | `/api/sim/run`, `/api/sim/reset` |
 
 ---
 
@@ -89,7 +66,7 @@ Product plan: `docs/MAZRA_PLAN.md` (from `MAZRA_PLAN.docx`).
 
 | Repo | Role |
 |------|------|
-| **Kanta** (`../kanta`) | Consumes data Mazra writes when Kanta is a client |
+| **Kanta** (`../kanta`) | Target schema + `mazra_generated` migration |
 
 ---
 

@@ -14,7 +14,9 @@ See `docs/MAZRA_PLAN.md` for the full product plan. **Living status:** `PROJECT_
 | `src/engine/rng.ts` | Seeded mulberry32 PRNG |
 | `scripts/seed.ts` | CLI seeder → `sim_generation_log` (+ optional Kanta `test_requests`) |
 | `src/app/api/health` | Liveness JSON |
-| `src/app/api/sim/run` | POST + Bearer secret — same as cron/seed run |
+| `src/app/api/sim/run` | POST/GET + `Authorization: Bearer` (`MAZRA_SIM_SECRET` or `CRON_SECRET`) — Vercel Cron uses GET |
+| `src/app/api/sim/reset` | POST — delete `mazra_generated` rows in Kanta, re-seed `MAZRA_SEED_DAYS` |
+| `docs/seeds/` | SQL snippets: Nakasero `sim_config` / Kanta prerequisites |
 | `supabase/migrations/` | SQL for Mazra control-plane tables (run on the **Mazra** Supabase project) |
 | `docs/MAZRA_PLAN.md` | Full plan exported from `MAZRA_PLAN.docx` |
 

@@ -1,22 +1,32 @@
 import { generateDay } from "@/engine";
+import type { DayEvent } from "@/engine/types";
 import { hasMazraControlCredentials } from "@/lib/mazra/env";
 import { createMazraAdminClient } from "@/lib/mazra/supabase-admin";
 import { countEventsByModule } from "@/lib/sim/aggregate";
 import { createTargetWriteClient } from "@/lib/sim/target-client";
 import type { SimConfigRow } from "@/lib/sim/sim-config";
 import { rowToSimFacilityConfig } from "@/lib/sim/sim-config";
-import { insertTestRequestsFromTatEvents } from "@/lib/sim/writers/test-requests";
+import {
+  insertTestRequestsFromTatEvents,
+  isTatPayload,
+  type TatPayload,
+} from "@/lib/sim/writers/test-requests";
+import { insertRevenueFromTat } from "@/lib/sim/writers/revenue";
+import { insertScanEventsForEquipment } from "@/lib/sim/writers/scan-events";
+import { insertTempReadingsForFridges } from "@/lib/sim/writers/temp-readings";
+import { insertQcRuns } from "@/lib/sim/writers/qc-runs";
 
 export type RunMode = "seed" | "cron" | "api";
 
 export interface RunGenerationResult {
-  /** facility × day executions */
   runsCompleted: number;
   daysProcessed: number;
   logsWritten: number;
+  /** Sum of all target inserts */
   targetRowsInserted: number;
+  /** Per-table insert counts for last run aggregate (seed processes many days — this is totals across loop) */
+  targetRowsByModule: Record<string, number>;
   errors: string[];
-  /** True when no `sim_config` rows — in-memory demo only; target writes skipped */
   usedFallbackConfig: boolean;
 }
 
@@ -50,9 +60,25 @@ function shouldWriteToTarget(): boolean {
   return v === "1" || v === "true" || v === "yes";
 }
 
+function extractTatPayloads(events: DayEvent[]): TatPayload[] {
+  return events
+    .filter((e) => e.module === "tat" && isTatPayload(e.payload))
+    .map((e) => e.payload as TatPayload);
+}
+
+function emptyModuleCounts(): Record<string, number> {
+  return {
+    tat: 0,
+    revenue: 0,
+    scan_events: 0,
+    temp_readings: 0,
+    qc_runs: 0,
+  };
+}
+
 /**
  * Run simulation for given dates × each enabled sim_config row; log to Mazra DB;
- * optionally insert TAT rows into the target (Kanta) Supabase when configured.
+ * optionally write all module rows to the target (Kanta) Supabase.
  */
 export async function runGeneration(opts: {
   mode: RunMode;
@@ -64,6 +90,7 @@ export async function runGeneration(opts: {
     daysProcessed: 0,
     logsWritten: 0,
     targetRowsInserted: 0,
+    targetRowsByModule: emptyModuleCounts(),
     errors: [],
     usedFallbackConfig: false,
   };
@@ -71,6 +98,9 @@ export async function runGeneration(opts: {
   const dates =
     opts.dates?.length ? opts.dates : defaultDatesForMode(opts.mode);
   result.daysProcessed = dates.length;
+
+  const envFacility =
+    opts.facilityIdFilter ?? process.env.MAZRA_FACILITY_ID?.trim() ?? null;
 
   if (!hasMazraControlCredentials()) {
     result.errors.push(
@@ -81,9 +111,10 @@ export async function runGeneration(opts: {
 
   const mazra = createMazraAdminClient();
   let query = mazra.from("sim_config").select("*").eq("sim_enabled", true);
-  if (opts.facilityIdFilter) {
-    query = query.eq("facility_id", opts.facilityIdFilter);
+  if (envFacility) {
+    query = query.eq("facility_id", envFacility);
   }
+
   const { data: dbRows, error: loadError } = await query;
 
   if (loadError) {
@@ -93,11 +124,18 @@ export async function runGeneration(opts: {
 
   const fromDb = (dbRows ?? []) as SimConfigRow[];
   let configs: SimConfigRow[];
+
   if (fromDb.length === 0) {
+    if (envFacility) {
+      result.errors.push(
+        `No sim_config row for facility_id=${envFacility}. Insert sim_config in Mazra first.`
+      );
+      return result;
+    }
     configs = [demoSimRow()];
     result.usedFallbackConfig = true;
     result.errors.push(
-      "No rows in sim_config — using in-memory demo config. Add sim_config rows for real facilities. Target DB writes are skipped (demo facility_id is not in Kanta)."
+      "No rows in sim_config — using in-memory demo config. Target DB writes skipped."
     );
   } else {
     configs = fromDb;
@@ -110,7 +148,7 @@ export async function runGeneration(opts: {
 
   if (shouldWriteToTarget() && !result.usedFallbackConfig && !target) {
     result.errors.push(
-      "MAZRA_WRITE_TO_TARGET set but no target client — set TARGET_SUPABASE_URL + TARGET_SUPABASE_SERVICE_ROLE_KEY (or fill mazra_clients.target_db_url + same service role key env)"
+      "MAZRA_WRITE_TO_TARGET set but no target client — set TARGET_SUPABASE_URL + TARGET_SUPABASE_SERVICE_ROLE_KEY (or mazra_clients.target_db_url + TARGET_SUPABASE_SERVICE_ROLE_KEY)"
     );
   }
 
@@ -118,13 +156,140 @@ export async function runGeneration(opts: {
     for (const row of configs) {
       const t0 = Date.now();
       const simConfig = rowToSimFacilityConfig(row);
+      const facilityId = row.facility_id;
       const events = generateDay(dateIso, simConfig);
-      const rowsByModule = countEventsByModule(events);
+
+      const logModules: Record<string, number> = target
+        ? emptyModuleCounts()
+        : countEventsByModule(events);
+
+      if (target) {
+        const tatR = await insertTestRequestsFromTatEvents(
+          target,
+          facilityId,
+          events
+        );
+        if (tatR.error) {
+          result.errors.push(
+            `test_requests (${facilityId} ${dateIso}): ${tatR.error}`
+          );
+        }
+        logModules.tat = tatR.inserted;
+        result.targetRowsByModule.tat += tatR.inserted;
+        result.targetRowsInserted += tatR.inserted;
+
+        const tatPayloads = extractTatPayloads(events);
+        const revR = await insertRevenueFromTat(
+          target,
+          facilityId,
+          dateIso,
+          row.seed_string,
+          tatPayloads
+        );
+        if (revR.error) {
+          result.errors.push(
+            `revenue_entries (${facilityId} ${dateIso}): ${revR.error}`
+          );
+        }
+        logModules.revenue = revR.inserted;
+        result.targetRowsByModule.revenue += revR.inserted;
+        result.targetRowsInserted += revR.inserted;
+
+        const { data: equipmentRows, error: eqErr } = await target
+          .from("equipment")
+          .select("id, hospital_id")
+          .eq("facility_id", facilityId)
+          .neq("status", "retired");
+
+        if (eqErr) {
+          result.errors.push(
+            `equipment load (${facilityId}): ${eqErr.message}`
+          );
+        } else if (equipmentRows?.length) {
+          const scanR = await insertScanEventsForEquipment(
+            target,
+            facilityId,
+            dateIso,
+            row.seed_string,
+            equipmentRows as { id: string; hospital_id: string }[]
+          );
+          if (scanR.error) {
+            result.errors.push(
+              `scan_events (${facilityId} ${dateIso}): ${scanR.error}`
+            );
+          }
+          logModules.scan_events = scanR.inserted;
+          result.targetRowsByModule.scan_events += scanR.inserted;
+          result.targetRowsInserted += scanR.inserted;
+        }
+
+        const { data: fridges, error: frErr } = await target
+          .from("refrigerator_units")
+          .select("id")
+          .eq("facility_id", facilityId)
+          .eq("is_active", true);
+
+        if (frErr) {
+          result.errors.push(
+            `refrigerator_units load (${facilityId}): ${frErr.message}`
+          );
+        } else if (fridges?.length) {
+          const fridgeIds = fridges.map((f) => f.id as string);
+          const tempR = await insertTempReadingsForFridges(
+            target,
+            facilityId,
+            dateIso,
+            row.seed_string,
+            fridgeIds
+          );
+          if (tempR.error) {
+            result.errors.push(
+              `temp_readings (${facilityId} ${dateIso}): ${tempR.error}`
+            );
+          }
+          logModules.temp_readings = tempR.inserted;
+          result.targetRowsByModule.temp_readings += tempR.inserted;
+          result.targetRowsInserted += tempR.inserted;
+        }
+
+        const { data: materials, error: matErr } = await target
+          .from("qc_materials")
+          .select("id, analyte")
+          .eq("facility_id", facilityId)
+          .eq("is_active", true);
+
+        if (matErr) {
+          result.errors.push(
+            `qc_materials load (${facilityId}): ${matErr.message}`
+          );
+        } else if (materials?.length) {
+          const materialIds: Record<string, string> = {};
+          for (const m of materials) {
+            const a = m.analyte as string;
+            if (a) materialIds[a] = m.id as string;
+          }
+          const qcR = await insertQcRuns(
+            target,
+            facilityId,
+            dateIso,
+            row.seed_string,
+            materialIds
+          );
+          if (qcR.error) {
+            result.errors.push(
+              `qc_runs (${facilityId} ${dateIso}): ${qcR.error}`
+            );
+          }
+          logModules.qc_runs = qcR.inserted;
+          result.targetRowsByModule.qc_runs += qcR.inserted;
+          result.targetRowsInserted += qcR.inserted;
+        }
+      }
 
       const { error: logErr } = await mazra.from("sim_generation_log").insert({
         facility_id: row.facility_id,
         mode: opts.mode,
-        rows_by_module: rowsByModule,
+        rows_by_module: logModules,
         duration_ms: Date.now() - t0,
       });
       if (logErr) {
@@ -136,21 +301,6 @@ export async function runGeneration(opts: {
       }
 
       result.runsCompleted += 1;
-
-      if (target) {
-        const ins = await insertTestRequestsFromTatEvents(
-          target,
-          row.facility_id,
-          events
-        );
-        if (ins.error) {
-          result.errors.push(
-            `test_requests insert (${row.facility_id} ${dateIso}): ${ins.error}`
-          );
-        } else {
-          result.targetRowsInserted += ins.inserted;
-        }
-      }
     }
   }
 

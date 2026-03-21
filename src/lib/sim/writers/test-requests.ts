@@ -13,7 +13,7 @@ export interface TatPayload {
   lab_number?: string | null;
 }
 
-function isTatPayload(p: unknown): p is TatPayload {
+export function isTatPayload(p: unknown): p is TatPayload {
   if (!p || typeof p !== "object") return false;
   const o = p as Record<string, unknown>;
   return typeof o.test_name === "string" && typeof o.section === "string";
@@ -43,6 +43,7 @@ export async function insertTestRequestsFromTatEvents(
       received_at: p.received_at ?? null,
       resulted_at: p.resulted_at ?? null,
       status: p.status,
+      mazra_generated: true,
     };
   });
 
