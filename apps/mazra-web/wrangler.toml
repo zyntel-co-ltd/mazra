@@ -1,0 +1,4 @@
+# Cloudflare Pages — project name must match the Pages project in the dashboard
+# (or pass --project-name when running wrangler from another directory).
+name = "mazra-web"
+compatibility_date = "2024-12-01"

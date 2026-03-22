@@ -20,6 +20,44 @@ npm run build
 
 Output: **`dist/`** — set as Pages output directory.
 
+## Cloudflare Pages (Wrangler deploy)
+
+Wrangler **must** know the Pages project name. Error `Must specify a project name` means the deploy step ran without it.
+
+`wrangler.toml` in this folder sets `name = "mazra-web"` — that string must **match** the Cloudflare Pages project name in the dashboard (or change either side to match).
+
+### Recommended CI commands (repo root)
+
+| Step | Command |
+|------|---------|
+| Build | `cd apps/mazra-web && npm ci && npm run build` |
+| Deploy | `cd apps/mazra-web && npm run pages:deploy` |
+
+`pages:deploy` runs `wrangler pages deploy dist --project-name=mazra-web` (pinned in `package.json`). From repo root without `cd`:
+
+```bash
+npx wrangler pages deploy apps/mazra-web/dist --project-name=mazra-web
+```
+
+Replace `mazra-web` with your real Pages project name if different.
+
+### CI secrets for Wrangler
+
+Add **environment variables** (or Pages → Settings → Environment variables):
+
+- `CLOUDFLARE_API_TOKEN` — API token with **Account → Cloudflare Pages → Edit** (and read account)
+- `CLOUDFLARE_ACCOUNT_ID` — Dashboard → any domain → right sidebar **Account ID**
+
+Without these, `wrangler pages deploy` cannot authenticate.
+
+### Local deploy
+
+```bash
+cd apps/mazra-web
+npm run build
+npm run pages:deploy
+```
+
 ## Mazra API env (Vercel)
 
 - `FLW_SECRET_KEY` — Flutterwave secret (Standard payments)
