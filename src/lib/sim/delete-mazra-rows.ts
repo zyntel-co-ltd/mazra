@@ -3,11 +3,25 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /** Delete synthetic rows only (FK-safe order). */
 const TABLES = [
   "qc_violations",
+  "qualitative_qc_entries",
   "qc_runs",
+  "tat_breaches",
+  "temp_breaches",
   "temp_readings",
   "scan_events",
+  "equipment_snapshots",
+  "operational_alerts",
   "revenue_entries",
+  "lab_samples",
+  "lab_racks",
   "test_requests",
+  "maintenance_schedule",
+  "qualitative_qc_configs",
+  "test_metadata",
+  "revenue_targets",
+  "numbers_targets",
+  "tests_targets",
+  "tat_targets",
 ] as const;
 
 export async function deleteMazraGeneratedForFacility(

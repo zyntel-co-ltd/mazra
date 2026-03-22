@@ -36,6 +36,8 @@ for (const name of [".env", ".env.local"] as const) {
   }
 }
 
+// Static seeders (test_metadata, targets, tat_targets, racks/samples, QC configs, …)
+// run inside runGeneration when MAZRA_WRITE_TO_TARGET is enabled — not duplicated here.
 import { runGeneration } from "../src/lib/sim/run-generation";
 
 function isoDaysAgo(daysAgo: number): string {

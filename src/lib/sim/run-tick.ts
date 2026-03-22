@@ -188,6 +188,23 @@ export async function runTick(
     }
   }
 
+  const staleBefore = new Date(
+    Date.now() - 2 * 60 * 60 * 1000
+  ).toISOString();
+  const { error: resultErr } = await targetDb
+    .from("test_requests")
+    .update({
+      status: "resulted",
+      resulted_at: now.toISOString(),
+    })
+    .eq("facility_id", facilityId)
+    .eq("mazra_generated", true)
+    .in("status", ["received", "in_progress"])
+    .lt("received_at", staleBefore);
+  if (resultErr) {
+    errors.push(`test_requests result stale: ${resultErr.message}`);
+  }
+
   const { data: fridges, error: frErr } = await targetDb
     .from("refrigerator_units")
     .select("id, min_temp_celsius, max_temp_celsius, name")

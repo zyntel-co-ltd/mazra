@@ -1,21 +1,35 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateDay } from "@/engine";
 import type { DayEvent } from "@/engine/types";
 import { hasMazraControlCredentials } from "@/lib/mazra/env";
 import { createMazraAdminClient } from "@/lib/mazra/supabase-admin";
 import { countEventsByModule } from "@/lib/sim/aggregate";
+import { seededRng } from "@/lib/sim/rng-writer";
 import { createTargetWriteClient } from "@/lib/sim/target-client";
+import { seedLabRacksAndSamples } from "@/lib/sim/seeders/samples";
+import { seedTargets, seedTatTargets } from "@/lib/sim/seeders/targets";
+import { seedTestMetadata } from "@/lib/sim/seeders/test-metadata";
 import type { SimConfigRow } from "@/lib/sim/sim-config";
 import { rowToSimFacilityConfig } from "@/lib/sim/sim-config";
 import {
+  applyHistoricalMazraTestResults,
   insertTestRequestsFromTatEvents,
   isTatPayload,
   type TatPayload,
+  writeTatBreachesForRequestIds,
 } from "@/lib/sim/writers/test-requests";
 import { insertRevenueFromTat } from "@/lib/sim/writers/revenue";
 import { insertScanEventsForEquipment } from "@/lib/sim/writers/scan-events";
 import { insertTempReadingsForFridges } from "@/lib/sim/writers/temp-readings";
 import { insertQcRuns } from "@/lib/sim/writers/qc-runs";
 import { writeQcViolations } from "@/lib/sim/writers/qc-violations";
+import { seedMaintenanceSchedule } from "@/lib/sim/writers/maintenance";
+import {
+  generateQualitativeEntries,
+  seedQualitativeQcConfigs,
+} from "@/lib/sim/writers/qc-qualitative";
+import { generateOperationalAlerts } from "@/lib/sim/writers/operational-alerts";
+import { generateEquipmentSnapshots } from "@/lib/sim/writers/equipment-snapshots";
 
 export type RunMode = "seed" | "cron" | "api";
 
@@ -73,9 +87,101 @@ function emptyModuleCounts(): Record<string, number> {
     revenue: 0,
     scan_events: 0,
     temp_readings: 0,
+    temp_breaches: 0,
+    tat_breaches: 0,
     qc_runs: 0,
     qc_violations: 0,
+    qualitative_qc: 0,
+    operational_alerts: 0,
+    equipment_snapshots: 0,
   };
+}
+
+function pushError(result: RunGenerationResult, msg: string) {
+  result.errors.push(msg);
+}
+
+async function runStaticTargetSeed(
+  target: SupabaseClient,
+  row: SimConfigRow,
+  result: RunGenerationResult
+): Promise<void> {
+  const facilityId = row.facility_id;
+
+  try {
+    const n = await seedTestMetadata(target, facilityId);
+    result.targetRowsInserted += n;
+    result.targetRowsByModule.test_metadata =
+      (result.targetRowsByModule.test_metadata ?? 0) + n;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    pushError(result, `static seed test_metadata (${facilityId}): ${msg}`);
+  }
+
+  try {
+    const n = await seedTargets(target, facilityId, row.seed_string);
+    result.targetRowsInserted += n;
+    result.targetRowsByModule.targets_monthly =
+      (result.targetRowsByModule.targets_monthly ?? 0) + n;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    pushError(result, `static seed targets (${facilityId}): ${msg}`);
+  }
+
+  try {
+    const n = await seedTatTargets(target, facilityId);
+    result.targetRowsInserted += n;
+    result.targetRowsByModule.tat_targets =
+      (result.targetRowsByModule.tat_targets ?? 0) + n;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    pushError(result, `static seed tat_targets (${facilityId}): ${msg}`);
+  }
+
+  const maintR = await seedMaintenanceSchedule(
+    target,
+    facilityId,
+    seededRng(`${row.seed_string}:maint:schedule`)
+  );
+  if (maintR.error) {
+    pushError(
+      result,
+      `static seed maintenance_schedule (${facilityId}): ${maintR.error}`
+    );
+  } else {
+    result.targetRowsInserted += maintR.inserted;
+    result.targetRowsByModule.maintenance_schedule =
+      (result.targetRowsByModule.maintenance_schedule ?? 0) + maintR.inserted;
+  }
+
+  try {
+    const n = await seedQualitativeQcConfigs(target, facilityId);
+    result.targetRowsInserted += n;
+    result.targetRowsByModule.qualitative_qc_configs =
+      (result.targetRowsByModule.qualitative_qc_configs ?? 0) + n;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    pushError(
+      result,
+      `static seed qualitative_qc_configs (${facilityId}): ${msg}`
+    );
+  }
+
+  try {
+    const { racks, samples } = await seedLabRacksAndSamples(
+      target,
+      facilityId,
+      seededRng(`${row.seed_string}:samples`)
+    );
+    result.targetRowsInserted += racks + samples;
+    result.targetRowsByModule.lab_racks =
+      (result.targetRowsByModule.lab_racks ?? 0) + racks;
+    result.targetRowsByModule.lab_samples =
+      (result.targetRowsByModule.lab_samples ?? 0) + samples;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    pushError(result, `static seed lab racks/samples (${facilityId}): ${msg}`);
+  }
 }
 
 /**
@@ -154,6 +260,8 @@ export async function runGeneration(opts: {
     );
   }
 
+  const staticSeededFacilities = new Set<string>();
+
   for (const dateIso of dates) {
     for (const row of configs) {
       const t0 = Date.now();
@@ -165,10 +273,16 @@ export async function runGeneration(opts: {
         ? emptyModuleCounts()
         : countEventsByModule(events);
 
+      if (target && !staticSeededFacilities.has(facilityId)) {
+        staticSeededFacilities.add(facilityId);
+        await runStaticTargetSeed(target, row, result);
+      }
+
       if (target) {
         const tatR = await insertTestRequestsFromTatEvents(
           target,
           facilityId,
+          dateIso,
           events
         );
         if (tatR.error) {
@@ -179,6 +293,37 @@ export async function runGeneration(opts: {
         logModules.tat = tatR.inserted;
         result.targetRowsByModule.tat += tatR.inserted;
         result.targetRowsInserted += tatR.inserted;
+
+        if (!tatR.error && tatR.requestIds.length > 0) {
+          try {
+            await applyHistoricalMazraTestResults(
+              target,
+              facilityId,
+              dateIso,
+              row.seed_string
+            );
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            result.errors.push(
+              `test_requests historical resulted (${facilityId} ${dateIso}): ${msg}`
+            );
+          }
+          try {
+            const breachN = await writeTatBreachesForRequestIds(
+              target,
+              facilityId,
+              tatR.requestIds
+            );
+            logModules.tat_breaches = breachN;
+            result.targetRowsByModule.tat_breaches += breachN;
+            result.targetRowsInserted += breachN;
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            result.errors.push(
+              `tat_breaches (${facilityId} ${dateIso}): ${msg}`
+            );
+          }
+        }
 
         const tatPayloads = extractTatPayloads(events);
         const revR = await insertRevenueFromTat(
@@ -227,7 +372,7 @@ export async function runGeneration(opts: {
 
         const { data: fridges, error: frErr } = await target
           .from("refrigerator_units")
-          .select("id")
+          .select("id, min_temp_celsius, max_temp_celsius")
           .eq("facility_id", facilityId)
           .eq("is_active", true);
 
@@ -236,13 +381,17 @@ export async function runGeneration(opts: {
             `refrigerator_units load (${facilityId}): ${frErr.message}`
           );
         } else if (fridges?.length) {
-          const fridgeIds = fridges.map((f) => f.id as string);
+          const fridgeRows = fridges.map((f) => ({
+            id: f.id as string,
+            min_temp_celsius: Number(f.min_temp_celsius),
+            max_temp_celsius: Number(f.max_temp_celsius),
+          }));
           const tempR = await insertTempReadingsForFridges(
             target,
             facilityId,
             dateIso,
             row.seed_string,
-            fridgeIds
+            fridgeRows
           );
           if (tempR.error) {
             result.errors.push(
@@ -252,6 +401,9 @@ export async function runGeneration(opts: {
           logModules.temp_readings = tempR.inserted;
           result.targetRowsByModule.temp_readings += tempR.inserted;
           result.targetRowsInserted += tempR.inserted;
+          logModules.temp_breaches = tempR.breachesInserted;
+          result.targetRowsByModule.temp_breaches += tempR.breachesInserted;
+          result.targetRowsInserted += tempR.breachesInserted;
         }
 
         const { data: materials, error: matErr } = await target
@@ -303,6 +455,50 @@ export async function runGeneration(opts: {
             logModules.qc_violations = 0;
           }
         }
+
+        const qualRng = seededRng(`${row.seed_string}:qual-qc:${dateIso}`);
+        const qualR = await generateQualitativeEntries(
+          dateIso,
+          target,
+          facilityId,
+          qualRng
+        );
+        if (qualR.error) {
+          result.errors.push(
+            `qualitative_qc_entries (${facilityId} ${dateIso}): ${qualR.error}`
+          );
+        }
+        logModules.qualitative_qc = qualR.inserted;
+        result.targetRowsByModule.qualitative_qc += qualR.inserted;
+        result.targetRowsInserted += qualR.inserted;
+
+        const alertsR = await generateOperationalAlerts(
+          dateIso,
+          target,
+          facilityId
+        );
+        if (alertsR.error) {
+          result.errors.push(
+            `operational_alerts (${facilityId} ${dateIso}): ${alertsR.error}`
+          );
+        }
+        logModules.operational_alerts = alertsR.inserted;
+        result.targetRowsByModule.operational_alerts += alertsR.inserted;
+        result.targetRowsInserted += alertsR.inserted;
+
+        const snapR = await generateEquipmentSnapshots(
+          dateIso,
+          target,
+          facilityId
+        );
+        if (snapR.error) {
+          result.errors.push(
+            `equipment_snapshots (${facilityId} ${dateIso}): ${snapR.error}`
+          );
+        }
+        logModules.equipment_snapshots = snapR.inserted;
+        result.targetRowsByModule.equipment_snapshots += snapR.inserted;
+        result.targetRowsInserted += snapR.inserted;
       }
 
       const { error: logErr } = await mazra.from("sim_generation_log").insert({
