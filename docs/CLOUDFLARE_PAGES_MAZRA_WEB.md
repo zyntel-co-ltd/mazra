@@ -7,10 +7,10 @@ Use Wrangler from the app folder so `node_modules` from the build step is reused
 | Field | Value |
 |--------|--------|
 | **Build command** | `cd apps/mazra-web && npm install && npm run build` |
-| **Deploy command** | `cd apps/mazra-web && npx wrangler pages deploy dist --project-name=mazra` |
+| **Deploy command** | `cd apps/mazra-web && npx wrangler pages deploy dist --project-name=mazra-web --commit-dirty=true` |
 | **Version command** | *(leave empty)* — do **not** use `wrangler versions upload` for this static site |
 
-If your Pages project is **not** named `mazra`, change `--project-name=` and `wrangler.toml` → `name` to match the dashboard exactly.
+`apps/mazra-web/wrangler.toml` sets `name = "mazra-web"` and `pages_build_output_dir = "dist"` (Wrangler 4 requires the latter). The **`--project-name`** must match **Workers & Pages** → your project **Name** exactly (create a Pages project named **`mazra-web`** if needed).
 
 ### API token (fixes `Authentication error [code: 10000]`)
 
@@ -46,7 +46,7 @@ Then you do **not** need Wrangler or `CLOUDFLARE_API_TOKEN` for deploy (Cloudfla
 ```bash
 cd apps/mazra-web
 npm run build
-npm run pages:deploy   # same as wrangler pages deploy dist --project-name=mazra
+npm run pages:deploy   # wrangler pages deploy dist --project-name=mazra-web
 ```
 
 ## Local preview

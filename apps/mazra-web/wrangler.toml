@@ -1,3 +1,5 @@
-# Must match Cloudflare Pages project name (dashboard: Workers & Pages → project name)
-name = "mazra"
+# Must match Cloudflare Pages project name (Workers & Pages → project name)
+name = "mazra-web"
 compatibility_date = "2024-12-01"
+# Required by Wrangler 4.x when using wrangler.toml with Pages deploy
+pages_build_output_dir = "dist"

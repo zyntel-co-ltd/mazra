@@ -7,7 +7,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "pages:deploy": "wrangler pages deploy dist --project-name=mazra"
+    "pages:deploy": "wrangler pages deploy dist --project-name=mazra-web --commit-dirty=true"
   },
   "dependencies": {
     "astro": "^5.7.0"

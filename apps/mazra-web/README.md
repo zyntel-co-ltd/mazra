@@ -25,8 +25,8 @@ Output: **`dist/`**.
 See **`docs/CLOUDFLARE_PAGES_MAZRA_WEB.md`**.
 
 - If the UI **requires a deploy command**, use:  
-  `cd apps/mazra-web && npx wrangler pages deploy dist --project-name=mazra`  
-  (after the build step). Set **`CLOUDFLARE_API_TOKEN`** (Pages **Edit**) + **`CLOUDFLARE_ACCOUNT_ID`**.
+  `cd apps/mazra-web && npx wrangler pages deploy dist --project-name=mazra-web --commit-dirty=true`  
+  (after the build step). Pages project name must be **`mazra-web`**. Set **`CLOUDFLARE_API_TOKEN`** (Pages **Edit**) + **`CLOUDFLARE_ACCOUNT_ID`**.
 - If you use **Pages** with only build + output directory, you may not need Wrangler.
 
 ## Mazra API env (Vercel)
