@@ -1,20 +1,17 @@
-# Cloudflare Workers Git UI — stop using Wrangler here
+# Workers Git UI — when **Deploy command** is required
 
-If your project shows **Build command** + **Deploy command** + **Version command**:
+Cloudflare sometimes **requires** a non-empty deploy command. Use:
 
-## Do this
+```bash
+cd apps/mazra-web && npx wrangler pages deploy dist --project-name=mazra
+```
 
-1. **Deploy command:** leave **empty** (remove `npx wrangler pages deploy ...`).
-2. **Version command:** leave **empty** (remove `npx wrangler versions upload`).
-3. **Build command:**  
+**Prerequisites**
+
+1. **Build** must run first (same pipeline):  
    `cd apps/mazra-web && npm install && npm run build`
-4. Point static hosting at **`apps/mazra-web/dist`** (exact field name depends on Workers vs Pages — see **`CLOUDFLARE_PAGES_MAZRA_WEB.md`**).
+2. **`CLOUDFLARE_API_TOKEN`** — custom token with **Account → Cloudflare Pages → Edit** (see `CLOUDFLARE_PAGES_MAZRA_WEB.md`).
+3. **`CLOUDFLARE_ACCOUNT_ID`**
+4. Project name **`mazra`** must match **Workers & Pages** → your project **Name**.
 
-## Why
-
-- Wrangler deploy needs a token with **Pages** permissions; misconfigured tokens cause `Authentication error [code: 10000]`.
-- Astro output is plain static files; **Pages** (or Workers static assets) can publish `dist/` after build **without** Wrangler.
-
-## Prefer Pages
-
-For a static site, creating a **Cloudflare Pages** project linked to the same repo is usually simpler than a Worker with a manual deploy step.
+**Version command:** leave empty (not `wrangler versions upload` for this Astro static export).
