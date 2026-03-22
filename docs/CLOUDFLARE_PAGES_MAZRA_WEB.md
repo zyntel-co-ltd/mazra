@@ -13,10 +13,10 @@ cd apps/mazra-web && npm run pages:deploy
 **Option B:** from repo root:
 
 ```bash
-npx wrangler pages deploy apps/mazra-web/dist --project-name=mazra-web
+npx wrangler pages deploy apps/mazra-web/dist --project-name=mazra
 ```
 
-If your Cloudflare Pages project is not named `mazra-web`, change `package.json` → `pages:deploy` and `wrangler.toml` → `name` to match the dashboard.
+Default in this repo matches dashboard project **`mazra`**. If you rename the Cloudflare project, update `package.json` → `pages:deploy` and `wrangler.toml` → `name`.
 
 Use the **exact** name shown in Cloudflare → **Workers & Pages** → your project.
 
