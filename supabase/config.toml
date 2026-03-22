@@ -1,0 +1,11 @@
+# Mazra — Supabase CLI (migrations + Edge Functions)
+# Link project: `npx supabase link --project-ref <ref>`
+
+project_id = "mazra"
+
+[api]
+enabled = true
+
+[functions.mazra-tick]
+# pg_cron → net.http_post with Authorization: Bearer <anon_key> invokes this function
+verify_jwt = true

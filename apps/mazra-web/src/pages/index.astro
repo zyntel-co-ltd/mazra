@@ -1,0 +1,480 @@
+---
+const apiBase = import.meta.env.PUBLIC_MAZRA_API_URL ?? "";
+---
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mazra — Hospital Data Simulation Engine</title>
+    <meta
+      name="description"
+      content="Generate realistic, deterministic hospital operational data for demos, training, and testing. TAT, revenue, equipment, cold chain, QC."
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        color: #1a1a1a;
+        background: #fff;
+      }
+      nav {
+        padding: 20px 40px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #eee;
+      }
+      .logo {
+        font-size: 24px;
+        font-weight: 700;
+        color: #0d2137;
+      }
+      .logo span {
+        color: #0a7c4e;
+      }
+      nav a {
+        color: #555;
+        text-decoration: none;
+        font-size: 15px;
+      }
+      .hero {
+        max-width: 800px;
+        margin: 100px auto;
+        padding: 0 40px;
+        text-align: center;
+      }
+      .hero h1 {
+        font-size: 52px;
+        font-weight: 700;
+        color: #0d2137;
+        line-height: 1.15;
+        margin-bottom: 20px;
+      }
+      .hero h1 span {
+        color: #0a7c4e;
+      }
+      .hero p {
+        font-size: 20px;
+        color: #555;
+        line-height: 1.7;
+        margin-bottom: 40px;
+      }
+      .cta {
+        display: inline-block;
+        background: #0d2137;
+        color: #fff;
+        padding: 14px 32px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .cta:hover {
+        background: #0a7c4e;
+      }
+      .modules {
+        max-width: 1000px;
+        margin: 80px auto;
+        padding: 0 40px;
+      }
+      .modules h2 {
+        font-size: 28px;
+        color: #0d2137;
+        margin-bottom: 40px;
+        text-align: center;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+      }
+      .card {
+        border: 1px solid #e5e5e5;
+        border-radius: 12px;
+        padding: 24px;
+      }
+      .card h3 {
+        font-size: 16px;
+        font-weight: 700;
+        color: #0d2137;
+        margin-bottom: 8px;
+      }
+      .card p {
+        font-size: 14px;
+        color: #666;
+        line-height: 1.6;
+      }
+      .pricing {
+        max-width: 900px;
+        margin: 80px auto;
+        padding: 0 40px;
+      }
+      .pricing h2 {
+        font-size: 28px;
+        color: #0d2137;
+        margin-bottom: 40px;
+        text-align: center;
+      }
+      .plans {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+      }
+      .plan {
+        border: 1px solid #e5e5e5;
+        border-radius: 12px;
+        padding: 32px 24px;
+      }
+      .plan.featured {
+        border-color: #0a7c4e;
+        background: #f0faf6;
+      }
+      .plan .price {
+        font-size: 36px;
+        font-weight: 700;
+        color: #0d2137;
+        margin: 12px 0;
+      }
+      .plan .price span {
+        font-size: 16px;
+        font-weight: 400;
+        color: #888;
+      }
+      .plan ul {
+        list-style: none;
+        margin-top: 20px;
+      }
+      .plan ul li {
+        font-size: 14px;
+        color: #555;
+        padding: 6px 0;
+        border-bottom: 1px solid #eee;
+      }
+      .plan ul li:before {
+        content: "✓ ";
+        color: #0a7c4e;
+        font-weight: 700;
+      }
+      .plan-cta {
+        display: block;
+        text-align: center;
+        margin-top: 24px;
+        padding: 12px;
+        background: #0d2137;
+        color: #fff;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 15px;
+      }
+      .plan.featured .plan-cta {
+        background: #0a7c4e;
+      }
+      .signup {
+        max-width: 520px;
+        margin: 80px auto;
+        padding: 32px 40px;
+        border: 1px solid #e5e5e5;
+        border-radius: 12px;
+      }
+      .signup h2 {
+        font-size: 24px;
+        color: #0d2137;
+        margin-bottom: 8px;
+      }
+      .signup > p {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 20px;
+      }
+      .signup label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 4px;
+        margin-top: 12px;
+      }
+      .signup input,
+      .signup select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 15px;
+      }
+      .signup button[type="submit"] {
+        margin-top: 20px;
+        width: 100%;
+        padding: 12px;
+        background: #0d2137;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .signup button[type="submit"]:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .sub-err {
+        margin-top: 12px;
+        font-size: 14px;
+        color: #a32d2d;
+      }
+      .pay-banner {
+        max-width: 800px;
+        margin: 24px auto 0;
+        padding: 12px 24px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 15px;
+        display: none;
+      }
+      .pay-banner.ok {
+        display: block;
+        background: #e6f4ee;
+        color: #0a7c4e;
+      }
+      .pay-banner.bad {
+        display: block;
+        background: #fde8e8;
+        color: #a32d2d;
+      }
+      footer {
+        text-align: center;
+        padding: 40px;
+        color: #888;
+        font-size: 14px;
+        border-top: 1px solid #eee;
+        margin-top: 80px;
+      }
+      @media (max-width: 700px) {
+        .grid,
+        .plans {
+          grid-template-columns: 1fr;
+        }
+        .hero h1 {
+          font-size: 36px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="logo">Mazra <span>مزرعة</span></div>
+      <a href="mailto:ntale@zyntel.net">Contact</a>
+    </nav>
+
+    <div id="pay-banner" class="pay-banner"></div>
+
+    <section class="hero">
+      <h1>Hospital data that <span>feels real</span></h1>
+      <p>
+        Mazra generates deterministic, realistic hospital operational data for
+        demos, training, and system testing. TAT, revenue, equipment, cold
+        chain, QC — all modules, all day.
+      </p>
+      <a
+        href="mailto:ntale@zyntel.net?subject=Mazra early access"
+        class="cta">Request early access</a>
+    </section>
+
+    <section class="modules">
+      <h2>What Mazra generates</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Laboratory TAT</h3>
+          <p>
+            80–150 patients/day across 6 sections. Realistic breach patterns,
+            shift distribution, STAT urgency.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Revenue</h3>
+          <p>
+            Derived from TAT. Cancellations, payer mix, month-end spikes. UGX or
+            any currency.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Equipment</h3>
+          <p>
+            45 items, Category A/B/C. Scan history, failure events, deferred
+            maintenance patterns.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Cold chain</h3>
+          <p>
+            8 refrigerator units. 15-minute readings. Door-seal drift,
+            compressor failure scenarios.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Quality control</h3>
+          <p>
+            Levey-Jennings data across 6 analysers. Creatinine drift, Westgard
+            violations, Friday spikes.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Scenarios</h3>
+          <p>
+            10 named scenarios — analyser breakdown, understaffed section,
+            audit week. Toggle before any demo.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="pricing">
+      <h2>Pricing</h2>
+      <div class="plans">
+        <div class="plan">
+          <div style="font-weight:700;font-size:18px;color:#0D2137">Starter</div>
+          <div class="price">$99 <span>/month</span></div>
+          <ul>
+            <li>1 facility</li>
+            <li>TAT + Revenue</li>
+            <li>90-day backfill</li>
+            <li>Daily batch + reset</li>
+          </ul>
+          <a href="mailto:ntale@zyntel.net?subject=Mazra Starter" class="plan-cta"
+            >Get started</a>
+        </div>
+        <div class="plan featured">
+          <div style="font-weight:700;font-size:18px;color:#0A7C4E">Pro</div>
+          <div class="price">$299 <span>/month</span></div>
+          <ul>
+            <li>3 facilities</li>
+            <li>All modules</li>
+            <li>Real-time tick (5 min)</li>
+            <li>Scenario library</li>
+            <li>Admin panel</li>
+          </ul>
+          <a href="mailto:ntale@zyntel.net?subject=Mazra Pro" class="plan-cta"
+            >Get started</a>
+        </div>
+        <div class="plan">
+          <div style="font-weight:700;font-size:18px;color:#0D2137">Enterprise</div>
+          <div class="price">$799 <span>/month</span></div>
+          <ul>
+            <li>Unlimited facilities</li>
+            <li>All modules</li>
+            <li>Custom scenarios</li>
+            <li>API access</li>
+            <li>Priority support</li>
+          </ul>
+          <a
+            href="mailto:ntale@zyntel.net?subject=Mazra Enterprise"
+            class="plan-cta">Contact us</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="signup" id="subscribe">
+      <h2>Subscribe (Flutterwave)</h2>
+      <p>
+        Creates a Mazra client record and opens secure checkout. Set
+        <code>PUBLIC_MAZRA_API_URL</code> to your deployed Mazra app (e.g.
+        Vercel). CORS: set <code>MAZRA_LANDING_ORIGIN</code> on the API.
+      </p>
+      <form id="sub-form">
+        <label for="company_name">Company name</label>
+        <input id="company_name" name="company_name" required />
+
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" required />
+
+        <label for="plan">Plan</label>
+        <select id="plan" name="plan" required>
+          <option value="starter">Starter — $99/mo</option>
+          <option value="pro" selected>Pro — $299/mo</option>
+          <option value="enterprise">Enterprise — $799/mo</option>
+        </select>
+
+        <label for="target_db_url">Target Supabase URL (optional)</label>
+        <input
+          id="target_db_url"
+          name="target_db_url"
+          type="url"
+          placeholder="https://xxxx.supabase.co"
+        />
+
+        <button type="submit" id="sub-btn">Pay securely</button>
+      </form>
+      <p id="sub-err" class="sub-err" role="alert"></p>
+    </section>
+
+    <footer>
+      Mazra — a Zyntel Limited product · Kampala, Uganda · mazra.dev
+    </footer>
+
+    <script define:vars={{ apiBase }}>
+      (function () {
+        const banner = document.getElementById("pay-banner");
+        const params = new URLSearchParams(location.search);
+        const pay = params.get("payment");
+        if (banner && pay === "success") {
+          banner.textContent = "Payment successful — welcome to Mazra.";
+          banner.classList.add("ok");
+        } else if (banner && pay === "failed") {
+          banner.textContent = "Payment was not completed. Try again or contact us.";
+          banner.classList.add("bad");
+        }
+
+        const form = document.getElementById("sub-form");
+        const errEl = document.getElementById("sub-err");
+        const btn = document.getElementById("sub-btn");
+
+        if (!form || !apiBase) {
+          if (errEl && !apiBase) {
+            errEl.textContent =
+              "Set PUBLIC_MAZRA_API_URL for this build to enable checkout.";
+          }
+          return;
+        }
+
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          if (errEl) errEl.textContent = "";
+          if (btn) btn.disabled = true;
+          const fd = new FormData(form);
+          const body = {
+            company_name: String(fd.get("company_name") || ""),
+            email: String(fd.get("email") || ""),
+            plan: String(fd.get("plan") || "pro"),
+            target_db_url: String(fd.get("target_db_url") || "") || null,
+          };
+          try {
+            const res = await fetch(`${apiBase.replace(/\/$/, "")}/api/billing/subscribe`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              throw new Error(data.message || data.error || res.statusText);
+            }
+            if (data.payment_url) {
+              window.location.href = data.payment_url;
+              return;
+            }
+            throw new Error("No payment_url in response");
+          } catch (x) {
+            if (errEl) errEl.textContent = x.message || String(x);
+          } finally {
+            if (btn) btn.disabled = false;
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

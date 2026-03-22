@@ -7,6 +7,10 @@ node_modules
 .next
 out
 
+# Astro marketing site (build locally / CI)
+apps/mazra-web/dist
+apps/mazra-web/.astro
+
 # env
 .env
 .env.local
@@ -29,3 +33,6 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+# Supabase CLI local state
+supabase/.temp

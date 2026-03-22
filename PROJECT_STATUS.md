@@ -32,11 +32,12 @@ Product plan: `docs/MAZRA_PLAN.md`.
 - [x] **Kanta migration (sibling repo)** — `kanta/supabase/migrations/20260321140000_mazra_generated_flags.sql`
 - [x] **qc_violations** writer — `src/lib/sim/writers/qc-violations.ts` (after `qc_runs`; `rows_by_module.qc_violations`)
 - [x] **Admin UI** — `/admin` (scenario toggles, run/reset); `/api/admin/*` form handlers (no Bearer — gate with Cloudflare Zero Trust); cron test notes: `docs/CRON_VERIFICATION.md`
+- [x] **Supabase Edge `mazra-tick`** — `supabase/functions/mazra-tick`; deploy + pg_cron: `docs/SUPABASE_EDGE_TICK.md`
+- [x] **Phase 6 scaffold** — Flutterwave REST billing (`/api/billing/subscribe`, `/api/billing/confirm`); landing `apps/mazra-web` (Astro); `docs/PHASE6_SAAS.md`
 
 ### Not done
 
-- [ ] **Supabase Edge** cron (alternative to Vercel)
-- [ ] **SaaS / billing** (Phase 6)
+- [ ] **SaaS hardening** — webhooks, automated seed-on-activate, Stripe/Flutterwave subscription renewals
 
 ---
 

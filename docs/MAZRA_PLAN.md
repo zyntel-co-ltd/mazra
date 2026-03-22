@@ -75,6 +75,8 @@ Culturally accurate (Ugandan names, UGX, East African structure), temporally coh
 
 Internal: Kanta demos. External: Starter / Pro / Enterprise SaaS ($99–$799/mo in plan).
 
+**Implementation notes:** marketing site in **`apps/mazra-web`** (Astro); checkout via **`docs/PHASE6_SAAS.md`** (Flutterwave Standard + `mazra_clients`). Optional **5‑min tick** via Supabase Edge + pg_cron: **`docs/SUPABASE_EDGE_TICK.md`** (disable duplicate Vercel tick if used).
+
 ## 11. Reuse from Kanta / Zyntel
 
 Nakasero meta CSV, `demo_client_agent.py` logic → TypeScript TAT, `westgard` / Kanta libs, Redis for reset rate limit, Cloudflare Zero Trust for admin.

@@ -4,6 +4,8 @@
 
 Vercel invokes **`GET /api/sim/tick`** on `*/15 * * * *` with the same Bearer secret pattern as `/api/sim/run`.
 
+For **5‑minute** ticks via Supabase Edge + pg_cron, see **`docs/SUPABASE_EDGE_TICK.md`** (avoid running both Vercel tick + Edge tick unless you want double inserts).
+
 PowerShell:
 
 ```powershell
