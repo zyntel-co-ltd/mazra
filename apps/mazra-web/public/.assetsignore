@@ -1,0 +1,4 @@
+# Cloudflare Pages — optional: glob patterns to skip when uploading static assets
+# (paths relative to the build output root, e.g. dist/)
+# Example:
+# *.map
