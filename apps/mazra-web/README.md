@@ -18,45 +18,15 @@ npm run dev
 npm run build
 ```
 
-Output: **`dist/`** — set as Pages output directory.
+Output: **`dist/`**.
 
-## Cloudflare Pages (Wrangler deploy)
+## Cloudflare (no Wrangler)
 
-Wrangler **must** know the Pages project name. Error `Must specify a project name` means the deploy step ran without it.
+Do **not** use `wrangler pages deploy` in CI. Connect the repo to **Cloudflare Pages** and let Cloudflare publish the build output after your build command finishes.
 
-`wrangler.toml` → `name = "mazra"` must **match** the Workers/Pages project name in the Cloudflare dashboard (yours: **mazra**).
+See **`docs/CLOUDFLARE_PAGES_MAZRA_WEB.md`** for exact settings.
 
-### Recommended CI commands (repo root)
-
-| Step | Command |
-|------|---------|
-| Build | `cd apps/mazra-web && npm ci && npm run build` |
-| Deploy | `cd apps/mazra-web && npm run pages:deploy` |
-
-`pages:deploy` runs `wrangler pages deploy dist --project-name=mazra`. From repo root without `cd`:
-
-```bash
-npx wrangler pages deploy apps/mazra-web/dist --project-name=mazra
-```
-
-If your dashboard project name is different, change `wrangler.toml` + `package.json` → `pages:deploy` to match.
-
-### CI secrets for Wrangler
-
-Add **environment variables** (or Pages → Settings → Environment variables):
-
-- `CLOUDFLARE_API_TOKEN` — API token with **Account → Cloudflare Pages → Edit** (and read account)
-- `CLOUDFLARE_ACCOUNT_ID` — Dashboard → any domain → right sidebar **Account ID**
-
-Without these, `wrangler pages deploy` cannot authenticate.
-
-### Local deploy
-
-```bash
-cd apps/mazra-web
-npm run build
-npm run pages:deploy
-```
+If you previously used a **Workers** Git project with a custom **Deploy command**, **clear that field** (and usually **Version command** too) so only the build runs; then configure the static output path per Cloudflare’s UI for your product (**Pages** vs **Workers + static assets**).
 
 ## Mazra API env (Vercel)
 

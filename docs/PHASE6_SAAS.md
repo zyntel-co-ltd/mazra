@@ -21,7 +21,7 @@
 ## Landing — `apps/mazra-web`
 
 - Astro static site; subscribe form calls **`PUBLIC_MAZRA_API_URL/api/billing/subscribe`**.
-- Cloudflare Pages: build `npm run build`, output **`dist`**, set **`PUBLIC_MAZRA_API_URL`** in project env.
+- Cloudflare: **no Wrangler** — use **Pages** with build + output dir; see **`docs/CLOUDFLARE_PAGES_MAZRA_WEB.md`**.
 
 ## Supabase plan
 

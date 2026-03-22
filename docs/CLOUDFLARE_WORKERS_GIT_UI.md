@@ -1,38 +1,20 @@
-# Cloudflare Workers — Git build UI (`zyntel-co-ltd/mazra`)
+# Cloudflare Workers Git UI — stop using Wrangler here
 
-Use these values so deploy matches project name **`mazra`** (General → Name).
+If your project shows **Build command** + **Deploy command** + **Version command**:
 
-## Build configuration
+## Do this
 
-| Field | Value |
-|--------|--------|
-| **Root directory** | *(empty = repo root)* |
-| **Build command** | `cd apps/mazra-web && npm install && npm run build` |
-| **Deploy command** | `npx wrangler pages deploy apps/mazra-web/dist --project-name=mazra` |
+1. **Deploy command:** leave **empty** (remove `npx wrangler pages deploy ...`).
+2. **Version command:** leave **empty** (remove `npx wrangler versions upload`).
+3. **Build command:**  
+   `cd apps/mazra-web && npm install && npm run build`
+4. Point static hosting at **`apps/mazra-web/dist`** (exact field name depends on Workers vs Pages — see **`CLOUDFLARE_PAGES_MAZRA_WEB.md`**).
 
-Alternative deploy (uses repo script + same name):
+## Why
 
-```bash
-cd apps/mazra-web && npm run pages:deploy
-```
+- Wrangler deploy needs a token with **Pages** permissions; misconfigured tokens cause `Authentication error [code: 10000]`.
+- Astro output is plain static files; **Pages** (or Workers static assets) can publish `dist/` after build **without** Wrangler.
 
-## Version command
+## Prefer Pages
 
-`npx wrangler versions upload` is for **Workers** script bundles, not a static **Pages**-style `dist/` upload. If your build fails on that step, try **clearing** the Version command (leave empty) or use only **Build** + **Deploy** as Cloudflare documents for static assets.
-
-## Variables and secrets
-
-Keep:
-
-- **`PUBLIC_MAZRA_API_URL`** = `https://mazra-nine.vercel.app` (or your live Mazra API) — Astro embeds this at build time.
-
-Also add (required for Wrangler to authenticate):
-
-| Name | Where to get it |
-|------|------------------|
-| **`CLOUDFLARE_API_TOKEN`** | API Tokens → custom token with **Account → Cloudflare Pages → Edit** (and read) |
-| **`CLOUDFLARE_ACCOUNT_ID`** | Dashboard → any zone → right column **Account ID** |
-
-## Build watch paths
-
-`*` is fine for a monorepo that shares the repo; optional tighten to e.g. `apps/mazra-web/**` later.
+For a static site, creating a **Cloudflare Pages** project linked to the same repo is usually simpler than a Worker with a manual deploy step.

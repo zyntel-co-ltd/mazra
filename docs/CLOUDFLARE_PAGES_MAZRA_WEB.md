@@ -1,37 +1,38 @@
-# Cloudflare Pages — `apps/mazra-web`
+# Cloudflare — deploy `apps/mazra-web` **without Wrangler**
 
-## Fix: `Must specify a project name`
+This repo does **not** use Wrangler for the marketing site. Use **Cloudflare Pages** (recommended) or your host’s native “build + publish `dist`” flow.
 
-`npx wrangler pages deploy apps/mazra-web/dist` from the **repo root** does not load `apps/mazra-web/wrangler.toml`, so Wrangler does not know the project.
+## Option A — Cloudflare Pages (recommended)
 
-**Option A (recommended):** use the npm script (includes `--project-name`):
+1. **Workers & Pages** → **Create** → **Pages** → Connect **`zyntel-co-ltd/mazra`**.
+2. Configure:
+
+| Setting | Value |
+|--------|--------|
+| **Root directory** | *(leave empty — repo root)* |
+| **Build command** | `cd apps/mazra-web && npm install && npm run build` |
+| **Build output directory** | `apps/mazra-web/dist` |
+
+3. **Environment variables** (Pages → Settings → Variables):
+
+   - `PUBLIC_MAZRA_API_URL` — e.g. `https://mazra-nine.vercel.app` (baked in at build time)
+
+4. No **Deploy command**, no **Wrangler**, no `CLOUDFLARE_API_TOKEN` required for the default Pages Git integration (Cloudflare deploys the output directory for you).
+
+## Option B — Workers “Git connected” UI (what you had)
+
+If the product is **Workers** with a custom **Build** + **Deploy command**:
+
+1. **Delete / clear** the **Deploy command** (do not run `wrangler pages deploy`).
+2. **Clear** the **Version command** (`npx wrangler versions upload` is for Worker scripts, not a static Astro `dist/`).
+3. Set the **static asset / output directory** in that UI to **`apps/mazra-web/dist`** (wording varies — look for “assets”, “output”, or “upload directory”).
+
+If Cloudflare only runs a build step and no longer runs Wrangler, you avoid API token permission errors on `pages/projects/...`.
+
+## Local preview
 
 ```bash
-cd apps/mazra-web && npm run pages:deploy
+cd apps/mazra-web
+npm run build
+npm run preview
 ```
-
-**Option B:** from repo root:
-
-```bash
-npx wrangler pages deploy apps/mazra-web/dist --project-name=mazra
-```
-
-Default in this repo matches dashboard project **`mazra`**. If you rename the Cloudflare project, update `package.json` → `pages:deploy` and `wrangler.toml` → `name`.
-
-Use the **exact** name shown in Cloudflare → **Workers & Pages** → your project.
-
-## Example pipeline
-
-```bash
-cd apps/mazra-web && npm ci && npm run build
-cd apps/mazra-web && npm run pages:deploy
-```
-
-## Auth in CI
-
-Set:
-
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-
-See `apps/mazra-web/README.md` for details.
