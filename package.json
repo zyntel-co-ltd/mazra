@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
-    "seed": "npx tsx scripts/seed.ts"
+    "seed": "npx tsx scripts/seed.ts",
+    "seed:90": "cross-env MAZRA_SEED_DAYS=90 npx tsx scripts/seed.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
@@ -25,6 +26,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.4.7",
     "tsx": "^4.19.0",
     "typescript": "^5"
   }

@@ -26,14 +26,15 @@ Product plan: `docs/MAZRA_PLAN.md`.
 - [x] **`MAZRA_FACILITY_ID`** env — filters `sim_config` (required when multiple facilities)
 - [x] **`POST /api/sim/reset`** — delete synthetic rows (FK order) + re-seed `MAZRA_SEED_DAYS`
 - [x] **`GET/POST /api/sim/run`** — GET for **Vercel Cron** (Bearer `MAZRA_SIM_SECRET` or `CRON_SECRET`)
-- [x] **`vercel.json`** — daily cron `5 0 * * *` (00:05 UTC; adjust for EAT)
+- [x] **`GET/POST /api/sim/tick`** — real-time drip every **15 min** (Vercel cron `*/15 * * * *`); `runTick()` + `MAZRA_SIM_TIMEZONE` / `MAZRA_TICK_MINUTES`
+- [x] **`vercel.json`** — crons: tick `*/15 * * * *`, daily batch `5 0 * * *` (Hobby = 2 crons max)
 - [x] **Seed SQL docs** — `docs/seeds/nakasero_mazra_control_plane.sql`, `docs/seeds/nakasero_kanta_prerequisites.sql`
 - [x] **Kanta migration (sibling repo)** — `kanta/supabase/migrations/20260321140000_mazra_generated_flags.sql`
+- [x] **qc_violations** writer — `src/lib/sim/writers/qc-violations.ts` (after `qc_runs`; `rows_by_module.qc_violations`)
+- [x] **Admin UI** — `/admin` (scenario toggles, run/reset); `/api/admin/*` form handlers (no Bearer — gate with Cloudflare Zero Trust); cron test notes: `docs/CRON_VERIFICATION.md`
 
 ### Not done
 
-- [ ] **qc_violations** writer (flags only on `qc_runs` today)
-- [ ] **Admin UI** — scenario toggles, manual run buttons
 - [ ] **Supabase Edge** cron (alternative to Vercel)
 - [ ] **SaaS / billing** (Phase 6)
 

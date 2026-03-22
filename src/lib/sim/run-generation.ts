@@ -15,6 +15,7 @@ import { insertRevenueFromTat } from "@/lib/sim/writers/revenue";
 import { insertScanEventsForEquipment } from "@/lib/sim/writers/scan-events";
 import { insertTempReadingsForFridges } from "@/lib/sim/writers/temp-readings";
 import { insertQcRuns } from "@/lib/sim/writers/qc-runs";
+import { writeQcViolations } from "@/lib/sim/writers/qc-violations";
 
 export type RunMode = "seed" | "cron" | "api";
 
@@ -73,6 +74,7 @@ function emptyModuleCounts(): Record<string, number> {
     scan_events: 0,
     temp_readings: 0,
     qc_runs: 0,
+    qc_violations: 0,
   };
 }
 
@@ -283,6 +285,23 @@ export async function runGeneration(opts: {
           logModules.qc_runs = qcR.inserted;
           result.targetRowsByModule.qc_runs += qcR.inserted;
           result.targetRowsInserted += qcR.inserted;
+
+          try {
+            const qcViolationsCount = await writeQcViolations(
+              target,
+              facilityId,
+              dateIso
+            );
+            logModules.qc_violations = qcViolationsCount;
+            result.targetRowsByModule.qc_violations += qcViolationsCount;
+            result.targetRowsInserted += qcViolationsCount;
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            result.errors.push(
+              `qc_violations (${facilityId} ${dateIso}): ${msg}`
+            );
+            logModules.qc_violations = 0;
+          }
         }
       }
 

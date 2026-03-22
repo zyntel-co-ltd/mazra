@@ -38,7 +38,8 @@ Named configs (analyser breakdown, understaffed haematology, fridge failure, mon
 - **App:** Next.js in monorepo under `apps/sim` (this scaffold uses repo **`mazra/`** at the same level as `kanta/`).
 - **Engine:** Pure TypeScript, `generateDay(date, config) → DayEvent[]`, **deterministic**; seeded PRNG (mulberry32).
 - **Config:** `sim_config` row per facility in Supabase (scenarios, seed, hospital profile).
-- **Pipeline:** Seeder (90-day backfill), **cron** (daily 00:01 EAT Edge Function), **reset** endpoint (Zero Trust).
+- **Pipeline:** Seeder (90-day backfill), **cron** (daily batch + optional 15‑min tick), **reset** endpoint (Zero Trust).
+- **Dual modes:** (1) **`runGeneration`** — full UTC-day batch (`/api/sim/run`) for charts / 90‑day history; (2) **`runTick`** — `GET/POST /api/sim/tick` drip-feeds live-style rows (LRIDS `test_requests`, fridge `temp_readings`, QC at 08:00/14:00 **local** via `MAZRA_SIM_TIMEZONE`, default `Africa/Kampala`). Complements the nightly batch.
 - **Destination:** **Same tables Kanta uses** — no parallel DB for Phase 1–5. Optional `mazra_generated` flags for safe reset (plan §7).
 
 ## 6. Implementation phases (summary)
