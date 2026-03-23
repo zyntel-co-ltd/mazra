@@ -36,3 +36,7 @@ Thumbs.db
 
 # Supabase CLI local state
 supabase/.temp
+
+# Dataset build: keep .json.gz + metadata; ignore raw JSON debug output
+datasets/**/*.json
+!datasets/**/metadata.json

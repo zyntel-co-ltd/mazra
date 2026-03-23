@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createMazraAdminClient } from "@/lib/mazra/supabase-admin";
 import { runTick } from "@/lib/sim/run-tick";
 
 function authorize(req: NextRequest): boolean {
@@ -60,7 +61,14 @@ async function handleTick(req: NextRequest) {
     );
   }
 
-  const result = await runTick(targetDb, facilityId);
+  let mazraDb = null;
+  try {
+    mazraDb = createMazraAdminClient();
+  } catch {
+    mazraDb = null;
+  }
+
+  const result = await runTick(targetDb, facilityId, mazraDb);
   return NextResponse.json(result);
 }
 

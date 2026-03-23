@@ -22,6 +22,11 @@ export interface SimConfigRow {
   active_scenarios: unknown;
   config_json: unknown;
   sim_enabled: boolean;
+  /** Pre-built dataset library mode */
+  active_mode?: string | null;
+  mode_switched_at?: string | null;
+  dataset_date_offset_days?: number | null;
+  last_tick_at?: string | null;
 }
 
 export function parseActiveScenarios(raw: unknown): ScenarioId[] {

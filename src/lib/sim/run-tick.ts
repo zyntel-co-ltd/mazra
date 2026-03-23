@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { MODE_CONFIGS, isDatasetMode } from "@/lib/sim/modes";
+import type { DatasetMode } from "@/lib/sim/modes/types";
 import { seededRng } from "@/lib/sim/rng-writer";
 import { getMazraSimTimezone, zonedDateParts } from "@/lib/sim/sim-timezone";
 import { writeQcViolations } from "@/lib/sim/writers/qc-violations";
@@ -131,10 +133,13 @@ async function writeQcForSlot(
 /**
  * Real-time drip: inserts for the current wall-clock slice (hospital timezone).
  * Intended to run every MAZRA_TICK_MINUTES (default 15) via cron or manual POST.
+ *
+ * @param mazraDb — optional control-plane client; when set, reads `active_mode` and updates `last_tick_at`.
  */
 export async function runTick(
   targetDb: SupabaseClient,
-  facilityId: string
+  facilityId: string,
+  mazraDb?: SupabaseClient | null
 ): Promise<RunTickResult> {
   const errors: string[] = [];
   const now = new Date();
@@ -145,6 +150,18 @@ export async function runTick(
   const rng = seededRng(
     `tick:${tz}:${dateIso}:${currentHour}:${Math.floor(currentMinute / tickM)}`
   );
+
+  let modeKey: DatasetMode = "baseline";
+  if (mazraDb) {
+    const { data: simRow } = await mazraDb
+      .from("sim_config")
+      .select("active_mode")
+      .eq("facility_id", facilityId)
+      .maybeSingle();
+    const m = simRow?.active_mode?.trim();
+    if (m && isDatasetMode(m)) modeKey = m;
+  }
+  const modeConfig = MODE_CONFIGS[modeKey];
 
   const result: RunTickResult = {
     tick: now.toISOString(),
@@ -162,13 +179,15 @@ export async function runTick(
     (currentHour >= 9 && currentHour <= 11) ||
     (currentHour >= 14 && currentHour <= 16);
 
+  const eff = modeConfig.staff_efficiency ?? 1;
   let patientCount = 0;
   if (isWorkingHours) {
-    patientCount = isPeak
+    const base = isPeak
       ? Math.floor(rng() * 4) + 1
       : Math.floor(rng() * 2) + 1;
+    patientCount = Math.max(0, Math.round(base * eff));
   } else if (isNightShift && rng() > 0.7) {
-    patientCount = 1;
+    patientCount = Math.max(0, Math.round(eff));
   }
 
   if (patientCount > 0) {
@@ -258,6 +277,37 @@ export async function runTick(
       result.qc_runs = qc.runs;
       result.qc_violations = qc.violations;
     }
+  }
+
+  const scanCompliance = modeConfig.scan_compliance ?? 1;
+  if (rng() < scanCompliance) {
+    const { data: equip } = await targetDb
+      .from("equipment")
+      .select("id, hospital_id")
+      .eq("facility_id", facilityId)
+      .neq("status", "retired")
+      .limit(12);
+    if (equip?.length) {
+      const pick = equip[Math.floor(rng() * equip.length)]!;
+      const { error: scErr } = await targetDb.from("scan_events").insert({
+        hospital_id: pick.hospital_id as string,
+        facility_id: facilityId,
+        equipment_id: pick.id as string,
+        scanned_by: "Mazra tick",
+        status_at_scan: "operational",
+        synced: true,
+        created_at: now.toISOString(),
+        mazra_generated: true,
+      });
+      if (scErr) errors.push(`scan_events: ${scErr.message}`);
+    }
+  }
+
+  if (mazraDb) {
+    await mazraDb
+      .from("sim_config")
+      .update({ last_tick_at: now.toISOString(), updated_at: now.toISOString() })
+      .eq("facility_id", facilityId);
   }
 
   result.errors = errors;

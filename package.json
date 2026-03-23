@@ -10,7 +10,9 @@
     "lint": "eslint",
     "type-check": "tsc --noEmit",
     "seed": "npx tsx scripts/seed.ts",
-    "seed:90": "cross-env MAZRA_SEED_DAYS=90 npx tsx scripts/seed.ts"
+    "seed:90": "cross-env MAZRA_SEED_DAYS=90 npx tsx scripts/seed.ts",
+    "build:dataset": "npx tsx scripts/build-dataset.ts",
+    "build:all-datasets": "npx tsx scripts/build-dataset.ts baseline 180 && npx tsx scripts/build-dataset.ts high_volume 180 && npx tsx scripts/build-dataset.ts critical_failure 180 && npx tsx scripts/build-dataset.ts understaffed 180 && npx tsx scripts/build-dataset.ts poor_discipline 180 && npx tsx scripts/build-dataset.ts recovery 180"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",

@@ -40,3 +40,6 @@ export async function deleteMazraGeneratedForFacility(
   }
   return { ok: true };
 }
+
+/** Alias for docs / external guides */
+export const deleteMazraRowsForFacility = deleteMazraGeneratedForFacility;

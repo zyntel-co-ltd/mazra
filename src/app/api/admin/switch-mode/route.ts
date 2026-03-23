@@ -1,36 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createMazraAdminClient } from "@/lib/mazra/supabase-admin";
-import { deleteMazraRowsForFacility } from "@/lib/sim/delete-mazra-rows";
 import { loadDataset } from "@/lib/sim/dataset-loader";
+import { deleteMazraRowsForFacility } from "@/lib/sim/delete-mazra-rows";
 import { isDatasetMode, MODE_CONFIGS } from "@/lib/sim/modes";
 import type { DatasetMode } from "@/lib/sim/modes/types";
 import { seedQualitativeQcConfigs } from "@/lib/sim/writers/qc-qualitative";
 
-/**
- * HTML form POST from /admin — reloads the **current** pre-built dataset mode
- * (or optional `mode` override). Clears Mazra-tagged rows first.
- */
+function targetClient() {
+  const url = process.env.TARGET_SUPABASE_URL?.trim();
+  const key = process.env.TARGET_SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!url || !key) return null;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.formData();
   const facilityId = (body.get("facility_id") as string | null)?.trim();
-  const modeOverride = (body.get("mode") as string | null)?.trim() || null;
+  const mode = (body.get("mode") as string | null)?.trim();
 
-  if (!facilityId) {
-    return NextResponse.redirect(new URL("/admin?err=missing_facility", req.url));
+  if (!facilityId || !mode || !isDatasetMode(mode) || !MODE_CONFIGS[mode as DatasetMode]) {
+    return NextResponse.redirect(new URL("/admin?err=invalid_mode_params", req.url));
   }
 
-  const url = process.env.TARGET_SUPABASE_URL?.trim();
-  const key = process.env.TARGET_SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!url || !key) {
+  const targetDb = targetClient();
+  if (!targetDb) {
     return NextResponse.redirect(
       new URL("/admin?err=missing_target_credentials", req.url)
     );
   }
-
-  const target = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
 
   let mazraDb;
   try {
@@ -41,22 +41,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { data: cfg } = await mazraDb
+  const { data: cfgRow } = await mazraDb
     .from("sim_config")
-    .select("active_mode, dataset_date_offset_days")
+    .select("dataset_date_offset_days")
     .eq("facility_id", facilityId)
     .maybeSingle();
 
-  const rawMode = modeOverride ?? cfg?.active_mode ?? "baseline";
-  const mode =
-    isDatasetMode(rawMode) && MODE_CONFIGS[rawMode as DatasetMode]
-      ? rawMode
-      : "baseline";
-
-  const dateOffsetDays = Number(cfg?.dataset_date_offset_days ?? 0) || 0;
+  const dateOffsetDays = Number(cfgRow?.dataset_date_offset_days ?? 0) || 0;
 
   try {
-    const del = await deleteMazraRowsForFacility(target, facilityId);
+    const del = await deleteMazraRowsForFacility(targetDb, facilityId);
     if (!del.ok) {
       return NextResponse.redirect(
         new URL(
@@ -66,8 +60,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await seedQualitativeQcConfigs(target, facilityId);
-    await loadDataset(mode, facilityId, target, { dateOffsetDays });
+    await seedQualitativeQcConfigs(targetDb, facilityId);
+    await loadDataset(mode, facilityId, targetDb, { dateOffsetDays });
 
     const { error: upErr } = await mazraDb
       .from("sim_config")
@@ -90,5 +84,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.redirect(new URL("/admin?reset=1", req.url));
+  return NextResponse.redirect(new URL("/admin?switched=1", req.url));
 }
