@@ -33,6 +33,9 @@ function targetClient() {
   });
 }
 
+/** TODO: set false and remove debug block after tracing switch-mode failures */
+const SWITCH_MODE_DEBUG_RETURN_BODY = true;
+
 /**
  * POST JSON: { "mode": "baseline", "facilityId": "<uuid>" }
  * Bearer: MAZRA_SIM_SECRET, CRON_SECRET, or NEXT_PUBLIC_MAZRA_SIM_SECRET (must match).
@@ -41,14 +44,40 @@ function targetClient() {
  * `deleting` | `loading` | `progress` | `done` | `error`
  */
 export async function POST(req: NextRequest) {
-  if (!authorize(req)) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
   const body = (await req.json().catch(() => ({}))) as {
     mode?: string;
     facilityId?: string;
   };
+
+  console.log("switch-mode received:", JSON.stringify(body));
+  console.log(
+    "mode valid:",
+    body.mode,
+    !!(body.mode && MODE_CONFIGS[body.mode.trim() as DatasetMode])
+  );
+  console.log("facility check will run next");
+
+  if (SWITCH_MODE_DEBUG_RETURN_BODY) {
+    const mode = body.mode?.trim();
+    const facilityId = body.facilityId?.trim();
+    return NextResponse.json({
+      debug: true,
+      received: body,
+      authorized: authorize(req),
+      bearerPresent: Boolean(bearerToken(req)),
+      modeRaw: body.mode,
+      facilityIdRaw: body.facilityId,
+      modeTrimmed: mode ?? null,
+      facilityIdTrimmed: facilityId ?? null,
+      isDatasetMode: mode ? isDatasetMode(mode) : false,
+      modeInMODE_CONFIGS: mode ? Boolean(MODE_CONFIGS[mode as DatasetMode]) : false,
+      knownModes: Object.keys(MODE_CONFIGS),
+    });
+  }
+
+  if (!authorize(req)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
 
   const mode = body.mode?.trim();
   const facilityId = body.facilityId?.trim();
