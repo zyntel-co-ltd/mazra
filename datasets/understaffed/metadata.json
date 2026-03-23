@@ -1,0 +1,21 @@
+{
+  "mode": "understaffed",
+  "days": 180,
+  "facilityId": "00000000-0000-4000-8000-000000000099",
+  "built_at": "2026-03-23T03:42:09.531Z",
+  "counts": {
+    "test_requests": 10943,
+    "revenue_entries": 10398,
+    "scan_events": 4032,
+    "temp_readings": 34560,
+    "qc_runs": 2160,
+    "qc_violations": 334,
+    "qualitative_qc_entries": 720,
+    "operational_alerts": 97,
+    "equipment_snapshots": 2700,
+    "tat_breaches": 5090,
+    "revenue_targets": 7,
+    "numbers_targets": 7,
+    "tests_targets": 7
+  }
+}

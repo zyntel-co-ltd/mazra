@@ -1,0 +1,20 @@
+{
+  "mode": "recovery",
+  "days": 180,
+  "facilityId": "00000000-0000-4000-8000-000000000099",
+  "built_at": "2026-03-23T03:42:12.564Z",
+  "counts": {
+    "test_requests": 12789,
+    "revenue_entries": 12191,
+    "scan_events": 4082,
+    "temp_readings": 34560,
+    "qc_runs": 2160,
+    "qualitative_qc_entries": 720,
+    "operational_alerts": 89,
+    "equipment_snapshots": 2700,
+    "tat_breaches": 4466,
+    "revenue_targets": 7,
+    "numbers_targets": 7,
+    "tests_targets": 7
+  }
+}
