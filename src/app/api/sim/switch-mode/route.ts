@@ -12,7 +12,7 @@ function bearerToken(req: NextRequest): string {
   return auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
 }
 
-/** Accept MAZRA_SIM_SECRET, CRON_SECRET, or NEXT_PUBLIC_MAZRA_SIM_SECRET (same value as client). */
+/** Accept MAZRA_SIM_SECRET, CRON_SECRET, or NEXT_PUBLIC_MAZRA_SIM_SECRET (same value as client). Headers only — never read body before authorize. */
 function authorize(req: NextRequest): boolean {
   const token = bearerToken(req);
   if (!token) return false;
@@ -33,60 +33,44 @@ function targetClient() {
   });
 }
 
-/** TODO: set false and remove debug block after tracing switch-mode failures */
-const SWITCH_MODE_DEBUG_RETURN_BODY = true;
-
 /**
  * POST JSON: { "mode": "baseline", "facilityId": "<uuid>" }
  * Bearer: MAZRA_SIM_SECRET, CRON_SECRET, or NEXT_PUBLIC_MAZRA_SIM_SECRET (must match).
+ *
+ * Auth uses `Authorization` header only. Body is read exactly once after auth.
  *
  * Success: `application/x-ndjson` stream — lines are JSON objects with `step`:
  * `deleting` | `loading` | `progress` | `done` | `error`
  */
 export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as {
-    mode?: string;
-    facilityId?: string;
-  };
-
-  console.log("switch-mode received:", JSON.stringify(body));
-  console.log(
-    "mode valid:",
-    body.mode,
-    !!(body.mode && MODE_CONFIGS[body.mode.trim() as DatasetMode])
-  );
-  console.log("facility check will run next");
-
-  if (SWITCH_MODE_DEBUG_RETURN_BODY) {
-    const mode = body.mode?.trim();
-    const facilityId = body.facilityId?.trim();
-    return NextResponse.json({
-      debug: true,
-      received: body,
-      authorized: authorize(req),
-      bearerPresent: Boolean(bearerToken(req)),
-      modeRaw: body.mode,
-      facilityIdRaw: body.facilityId,
-      modeTrimmed: mode ?? null,
-      facilityIdTrimmed: facilityId ?? null,
-      isDatasetMode: mode ? isDatasetMode(mode) : false,
-      modeInMODE_CONFIGS: mode ? Boolean(MODE_CONFIGS[mode as DatasetMode]) : false,
-      knownModes: Object.keys(MODE_CONFIGS),
-    });
-  }
-
   if (!authorize(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const mode = body.mode?.trim();
-  const facilityId = body.facilityId?.trim();
-  if (!mode || !facilityId || !isDatasetMode(mode) || !MODE_CONFIGS[mode as DatasetMode]) {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+  }
+
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+  }
+
+  const o = body as { mode?: unknown; facilityId?: unknown };
+  const mode = typeof o.mode === "string" ? o.mode.trim() : "";
+  const facilityId =
+    typeof o.facilityId === "string" ? o.facilityId.trim() : "";
+
+  if (!mode || !facilityId || !isDatasetMode(mode) || !MODE_CONFIGS[mode]) {
     return NextResponse.json(
-      { error: "invalid_mode_or_facility", mode, facilityId },
+      { error: "invalid_mode_or_facility", mode: mode || null, facilityId: facilityId || null },
       { status: 400 }
     );
   }
+
+  const modeTyped = mode as DatasetMode;
 
   const targetDb = targetClient();
   if (!targetDb) {
@@ -135,7 +119,7 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        send({ step: "loading", message: `Loading ${mode} dataset…` });
+        send({ step: "loading", message: `Loading ${modeTyped} dataset…` });
 
         try {
           await seedQualitativeQcConfigs(targetDb, facilityId);
@@ -149,7 +133,7 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        const counts = await loadDataset(mode, facilityId, targetDb, {
+        const counts = await loadDataset(modeTyped, facilityId, targetDb, {
           dateOffsetDays,
           onProgress: (table, loaded, total) => {
             send({ step: "progress", table, loaded, total });
@@ -159,7 +143,7 @@ export async function POST(req: NextRequest) {
         const { error: upErr } = await mazraDb
           .from("sim_config")
           .update({
-            active_mode: mode,
+            active_mode: modeTyped,
             mode_switched_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
@@ -171,7 +155,7 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        send({ step: "done", mode, facilityId, counts });
+        send({ step: "done", mode: modeTyped, facilityId, counts });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         send({ step: "error", message: msg });
