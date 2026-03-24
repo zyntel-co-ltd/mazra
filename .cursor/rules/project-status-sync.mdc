@@ -1,0 +1,16 @@
+---
+description: Always keep PROJECT_STATUS.md updated with repo changes
+alwaysApply: true
+---
+
+# PROJECT_STATUS Update Rule
+
+Any meaningful repo change must include a `PROJECT_STATUS.md` update in the same work:
+
+- Update status for shipped features, in-progress work, blockers, env/infra changes, and next milestones.
+- Update "Last updated" and keep sections current (built, in progress, planned, stack, environment).
+- If branch/deploy/domain/monitoring changes, reflect them in `PROJECT_STATUS.md`.
+- If a change affects cross-repo management reporting, note it for `knowledge/zyntel-playbook/06-operations/projects-status.md`.
+
+Do not consider implementation complete until `PROJECT_STATUS.md` is aligned.
+
