@@ -5,6 +5,34 @@
 
 ---
 
+## Repo map (high-signal)
+
+Generated from a `repomix --no-files` snapshot (paths only). **No secrets or file contents** are included here.
+
+### Top-level
+
+```text
+.cursor/
+.github/
+apps/
+datasets/
+docs/
+scripts/
+src/
+supabase/
+```
+
+### Key entrypoints
+
+```text
+.env.example
+next.config.ts
+package.json
+PROJECT_STATUS.md
+datasets/README.md
+docs/MAZRA_PLAN.md
+```
+
 ## What This Project Is
 
 **Mazra** generates realistic, **deterministic** hospital operational data for demos and testing. **Control plane** = Mazra Supabase (`sim_config`, `mazra_clients`, `sim_generation_log`). **Target** = customer Kanta Supabase; writers use the service role and set **`mazra_generated: true`** so **reset** only removes synthetic rows.
