@@ -22,6 +22,7 @@ import { generateQcRunsForDay } from "@/lib/sim/generators/qc";
 import { generateRevenueFromTat } from "@/lib/sim/generators/revenue";
 import { generateTatEvents } from "@/lib/sim/generators/tat";
 import { fmtRday } from "@/lib/sim/generators/time-encoding";
+import { parseRtime } from "@/lib/sim/generators/time-encoding";
 
 const gzip = promisify(zlib.gzip);
 
@@ -38,6 +39,93 @@ const PLACEHOLDER_EQUIPMENT_IDS = Array.from({ length: 15 }, (_, i) =>
 const PLACEHOLDER_FRIDGE_IDS = Array.from({ length: 8 }, (_, i) =>
   `fridge-placeholder-${String(i).padStart(2, "0")}`
 );
+
+function rtimeDiffMinutes(a: string | null, b: string | null): number | null {
+  if (!a || !b) return null;
+  const pa = parseRtime(a);
+  const pb = parseRtime(b);
+  if (!pa || !pb) return null;
+  const ma = pa.relativeDay * 1440 + pa.minutes;
+  const mb = pb.relativeDay * 1440 + pb.minutes;
+  const diff = mb - ma;
+  return Number.isFinite(diff) && diff >= 0 ? diff : null;
+}
+
+function buildEquipmentTelemetryForDay(opts: {
+  facilityId: string;
+  relativeDay: number;
+  testRequests: Record<string, unknown>[];
+}): Record<string, unknown>[] {
+  const { facilityId, relativeDay, testRequests } = opts;
+  if (!testRequests.length) return [];
+
+  const sampleCount = testRequests.length;
+  const dayOfWeek = ((relativeDay % 7) + 7) % 7;
+  const rows: Record<string, unknown>[] = [];
+
+  for (const r of testRequests) {
+    const section = String(r.section ?? "Unknown");
+    const testName = String(r.test_name ?? "Unknown");
+    const receivedAt = (r.received_at as string | null) ?? null;
+    const resultedAt = (r.resulted_at as string | null) ?? null;
+    const tatMinutes = rtimeDiffMinutes(receivedAt, resultedAt);
+
+    const recv = receivedAt ? parseRtime(receivedAt) : null;
+    const hourOfDay =
+      recv != null ? Math.floor((recv.minutes % 1440) / 60) : null;
+
+    rows.push({
+      id: deterministicUuid(`telemetry:${facilityId}:${relativeDay}:${String(r.id ?? "")}`),
+      facility_id: facilityId,
+      equipment_id: null,
+      section,
+      test_name: testName,
+      tat_minutes: tatMinutes ?? 60,
+      z_score: null,
+      hour_of_day: hourOfDay,
+      day_of_week: dayOfWeek,
+      samples_that_day: sampleCount,
+      days_to_failure: null,
+      failure_type: null,
+      recorded_at: fmtRday(relativeDay),
+      mazra_generated: true,
+    });
+  }
+
+  return rows;
+}
+
+function buildQcResultsForDay(opts: {
+  facilityId: string;
+  relativeDay: number;
+  qcRuns: Record<string, unknown>[];
+}): Record<string, unknown>[] {
+  const { facilityId, relativeDay, qcRuns } = opts;
+  if (!qcRuns.length) return [];
+
+  return qcRuns.map((r) => {
+    const flags = Array.isArray(r.westgard_flags) ? (r.westgard_flags as any[]) : [];
+    const ruleViolations = flags
+      .map((f) => String(f))
+      .filter(Boolean)
+      .map((s) => s.toUpperCase());
+
+    return {
+      id: deterministicUuid(`qc_results:${String(r.id ?? "")}`),
+      material_id: r.material_id,
+      facility_id: facilityId,
+      run_date: fmtRday(relativeDay),
+      value: r.value,
+      z_score: r.z_score ?? null,
+      rule_violations: ruleViolations,
+      result_type: "quantitative",
+      notes: null,
+      operator: null,
+      created_at: fmtRday(relativeDay),
+      mazra_generated: true,
+    };
+  });
+}
 
 function buildMonthlyTargets(
   facilityId: string,
@@ -101,11 +189,13 @@ export async function buildDataset(
 
   const tables: Record<string, Record<string, unknown>[]> = {
     test_requests: [],
+    equipment_telemetry_log: [],
     revenue_entries: [],
     scan_events: [],
     temp_readings: [],
     temp_breaches: [],
     qc_runs: [],
+    qc_results: [],
     qc_violations: [],
     qualitative_qc_entries: [],
     operational_alerts: [],
@@ -157,6 +247,13 @@ export async function buildDataset(
     });
     tables.test_requests.push(...tat.requests);
     tables.tat_breaches.push(...tat.breaches);
+    tables.equipment_telemetry_log.push(
+      ...buildEquipmentTelemetryForDay({
+        facilityId,
+        relativeDay,
+        testRequests: tat.requests,
+      })
+    );
 
     const revenueRows = generateRevenueFromTat(
       tat.requests,
@@ -205,6 +302,9 @@ export async function buildDataset(
       rng,
     });
     tables.qc_runs.push(...qc.runs);
+    tables.qc_results.push(
+      ...buildQcResultsForDay({ facilityId, relativeDay, qcRuns: qc.runs })
+    );
     tables.qc_violations.push(...qc.violations);
 
     tables.qualitative_qc_entries.push(
