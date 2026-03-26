@@ -1,6 +1,6 @@
 # Mazra — Project Status
 
-**Last updated:** 22 March 2026  
+**Last updated:** 26 March 2026  
 **Repo:** `mazra` (Zyntel) — hospital data simulation engine
 
 ---
@@ -65,7 +65,10 @@ Product plan: `docs/MAZRA_PLAN.md`. Dataset how-to: `datasets/README.md`.
 - [x] **Equipment** — `scan_events`; **`equipment_snapshots`** (analytics); **`maintenance_schedule`**
 - [x] **Fridge** — `temp_readings` + **`temp_breaches`** detection
 - [x] **QC** — `qc_runs`, **`qc_violations`**; **qualitative** `qualitative_qc_configs` + `qualitative_qc_entries`
+- [x] **QC (quantitative UI)** — `qc_results` (Phase 11 table in Kanta; written by Mazra during `runGeneration`)
 - [x] **Ops** — **`operational_alerts`**
+- [x] **AI telemetry (Phase 10)** — `equipment_telemetry_log` written during `runGeneration` from the day’s TAT rows
+- [x] **Unmatched tests (Phase 10/12)** — `unmatched_tests` upsert after dataset load for `poor_discipline` mode
 - [x] **Targets** — monthly **`revenue_targets`**, **`numbers_targets`**, **`tests_targets`**; **`tat_targets`** (section + per-test)
 - [x] **Samples (Phase 9)** — **`lab_racks`**, **`lab_samples`** (`seedLabRacksAndSamples`)
 - [x] **Static seed** (once per facility in `runGeneration` when `MAZRA_WRITE_TO_TARGET=1`) — metadata, targets, TAT targets, maintenance, qualitative configs, racks/samples
@@ -84,7 +87,7 @@ Product plan: `docs/MAZRA_PLAN.md`. Dataset how-to: `datasets/README.md`.
 - [x] **`src/lib/sim/generators/`** — TAT (incl. **unmatched tests** for poor_discipline), revenue, equipment, fridges, QC, qualitative, alerts; **`RDAY:`** / **`RTIME:`** encoding
 - [x] **`dataset-builder.ts`** + **`dataset-loader.ts`** — gzip tables, ID remap (`equip-placeholder-*`, `pmat:*`, `pqual:*`), date rebase; **skips monthly target tables** when `targets_missing`
 - [x] **`scripts/build-dataset.ts`** — `npm run build:dataset -- <mode> [days]`; **`build:all-datasets`**
-- [x] **`POST /api/sim/switch-mode`** — Bearer JSON `{ mode, facilityId }`; wipe → **`seedQualitativeQcConfigs`** → **`loadDataset`**
+- [x] **`POST /api/sim/switch-mode`** — Bearer JSON `{ mode, facilityId }`; wipe → **`seedQualitativeQcConfigs`** → **`loadDataset`** → (optional) **Kanta TAT anomaly baseline refresh**
 - [x] **`POST /api/admin/switch-mode`** + **`POST /api/admin/sim-reset`** — reload **current** (or chosen) mode dataset (**not** `runGeneration`)
 - [x] **Admin `/admin`** — mode cards (built state from `datasets/<mode>/metadata.json`), switch / reset, **legacy “Run today”** still calls **`/api/admin/sim-run`**
 
