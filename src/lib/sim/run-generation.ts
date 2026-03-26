@@ -22,6 +22,7 @@ import { insertRevenueFromTat } from "@/lib/sim/writers/revenue";
 import { insertScanEventsForEquipment } from "@/lib/sim/writers/scan-events";
 import { insertTempReadingsForFridges } from "@/lib/sim/writers/temp-readings";
 import { insertQcRuns } from "@/lib/sim/writers/qc-runs";
+import { insertQcResultsQuantitative } from "@/lib/sim/writers/qc-results";
 import { writeQcViolations } from "@/lib/sim/writers/qc-violations";
 import { seedMaintenanceSchedule } from "@/lib/sim/writers/maintenance";
 import {
@@ -30,6 +31,7 @@ import {
 } from "@/lib/sim/writers/qc-qualitative";
 import { generateOperationalAlerts } from "@/lib/sim/writers/operational-alerts";
 import { generateEquipmentSnapshots } from "@/lib/sim/writers/equipment-snapshots";
+import { generateEquipmentTelemetry } from "@/lib/sim/writers/equipment-telemetry";
 
 export type RunMode = "seed" | "cron" | "api";
 
@@ -91,9 +93,11 @@ function emptyModuleCounts(): Record<string, number> {
     tat_breaches: 0,
     qc_runs: 0,
     qc_violations: 0,
+    qc_results: 0,
     qualitative_qc: 0,
     operational_alerts: 0,
     equipment_snapshots: 0,
+    equipment_telemetry: 0,
   };
 }
 
@@ -294,6 +298,40 @@ export async function runGeneration(opts: {
         result.targetRowsByModule.tat += tatR.inserted;
         result.targetRowsInserted += tatR.inserted;
 
+        if (!tatR.error && tatR.inserted > 0) {
+          try {
+            const { data: dayRows, error: trErr } = await target
+              .from("test_requests")
+              .select("section, requested_at, received_at, resulted_at")
+              .eq("facility_id", facilityId)
+              .eq("mazra_generated", true)
+              .gte("requested_at", `${dateIso}T00:00:00.000Z`)
+              .lt("requested_at", `${dateIso}T23:59:59.999Z`);
+
+            if (trErr) {
+              throw new Error(trErr.message);
+            }
+
+            const n = await generateEquipmentTelemetry({
+              dateIso,
+              targetDb: target,
+              facilityId,
+              tatRows: (dayRows ?? []) as any[],
+              rng: seededRng(`${row.seed_string}:telemetry:${dateIso}`),
+            });
+
+            logModules.equipment_telemetry = n;
+            result.targetRowsByModule.equipment_telemetry =
+              (result.targetRowsByModule.equipment_telemetry ?? 0) + n;
+            result.targetRowsInserted += n;
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            result.errors.push(
+              `equipment_telemetry_log (${facilityId} ${dateIso}): ${msg}`
+            );
+          }
+        }
+
         if (!tatR.error && tatR.requestIds.length > 0) {
           try {
             await applyHistoricalMazraTestResults(
@@ -437,6 +475,23 @@ export async function runGeneration(opts: {
           logModules.qc_runs = qcR.inserted;
           result.targetRowsByModule.qc_runs += qcR.inserted;
           result.targetRowsInserted += qcR.inserted;
+
+          const qcResR = await insertQcResultsQuantitative(
+            target,
+            facilityId,
+            dateIso,
+            row.seed_string,
+            materialIds
+          );
+          if (qcResR.error) {
+            result.errors.push(
+              `qc_results (${facilityId} ${dateIso}): ${qcResR.error}`
+            );
+          }
+          logModules.qc_results = qcResR.inserted;
+          result.targetRowsByModule.qc_results =
+            (result.targetRowsByModule.qc_results ?? 0) + qcResR.inserted;
+          result.targetRowsInserted += qcResR.inserted;
 
           try {
             const qcViolationsCount = await writeQcViolations(

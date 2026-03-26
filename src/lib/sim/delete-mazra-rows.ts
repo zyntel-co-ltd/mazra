@@ -14,6 +14,8 @@ const TABLES = [
   "revenue_entries",
   "lab_samples",
   "lab_racks",
+  "unmatched_tests",
+  "equipment_telemetry_log",
   "test_requests",
   "maintenance_schedule",
   "qualitative_qc_configs",

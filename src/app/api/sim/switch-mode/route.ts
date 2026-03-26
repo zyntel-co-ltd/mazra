@@ -6,6 +6,7 @@ import { deleteMazraRowsForFacility } from "@/lib/sim/delete-mazra-rows";
 import { isDatasetMode, MODE_CONFIGS } from "@/lib/sim/modes";
 import type { DatasetMode } from "@/lib/sim/modes/types";
 import { seedQualitativeQcConfigs } from "@/lib/sim/writers/qc-qualitative";
+import { writeUnmatchedTests } from "@/lib/sim/writers/unmatched-tests";
 
 function bearerToken(req: NextRequest): string {
   const auth = req.headers.get("authorization") ?? "";
@@ -139,6 +140,41 @@ export async function POST(req: NextRequest) {
             send({ step: "progress", table, loaded, total });
           },
         });
+
+        if (modeTyped === "poor_discipline") {
+          try {
+            const n = await writeUnmatchedTests(targetDb, facilityId);
+            send({
+              step: "progress",
+              table: "unmatched_tests",
+              loaded: n,
+              total: n,
+            });
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            send({ step: "error", message: `unmatched_tests: ${msg}` });
+            controller.close();
+            return;
+          }
+        }
+
+        // After load completes, trigger Kanta anomaly baseline refresh (non-fatal).
+        try {
+          const appUrl = process.env.KANTA_APP_URL?.trim();
+          const secret = process.env.KANTA_CRON_SECRET?.trim();
+          if (appUrl && secret) {
+            await fetch(`${appUrl.replace(/\\/+$/, "")}/api/tat/anomalies`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${secret}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ facilityId }),
+            });
+          }
+        } catch (e) {
+          console.warn("Anomaly baseline refresh failed:", e);
+        }
 
         const { error: upErr } = await mazraDb
           .from("sim_config")
