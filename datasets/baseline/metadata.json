@@ -2,7 +2,7 @@
   "mode": "baseline",
   "days": 180,
   "facilityId": "00000000-0000-4000-8000-000000000099",
-  "built_at": "2026-03-23T03:23:57.039Z",
+  "built_at": "2026-03-26T14:04:32.138Z",
   "counts": {
     "test_requests": 16947,
     "revenue_entries": 16203,
