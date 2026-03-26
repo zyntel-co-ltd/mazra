@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
           const appUrl = process.env.KANTA_APP_URL?.trim();
           const secret = process.env.KANTA_CRON_SECRET?.trim();
           if (appUrl && secret) {
-            await fetch(`${appUrl.replace(/\\/+$/, "")}/api/tat/anomalies`, {
+            await fetch(`${appUrl.replace(/\/+$/, "")}/api/tat/anomalies`, {
               method: "POST",
               headers: {
                 Authorization: `Bearer ${secret}`,
