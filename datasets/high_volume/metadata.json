@@ -1,14 +1,16 @@
 {
   "mode": "high_volume",
   "days": 180,
-  "facilityId": "00000000-0000-4000-8000-000000000099",
-  "built_at": "2026-03-23T03:42:06.248Z",
+  "facilityId": "6eafdd6c-cc3b-47cf-8bf6-44d7254be4b5",
+  "built_at": "2026-03-27T01:36:53.462Z",
   "counts": {
     "test_requests": 25546,
+    "equipment_telemetry_log": 25546,
     "revenue_entries": 24080,
     "scan_events": 4015,
     "temp_readings": 34560,
     "qc_runs": 2160,
+    "qc_results": 2160,
     "qualitative_qc_entries": 720,
     "operational_alerts": 58,
     "equipment_snapshots": 2700,
