@@ -1,6 +1,6 @@
 # Mazra — Project Status
 
-**Last updated:** 26 March 2026  
+**Last updated:** 27 March 2026  
 **Repo:** `mazra` (Zyntel) — hospital data simulation engine
 
 ---
@@ -49,6 +49,12 @@ Product plan: `docs/MAZRA_PLAN.md`. Dataset how-to: `datasets/README.md`.
 **Phase:** Switchable 180-day stories; admin mode cards; tick scales with active mode
 
 ### Done
+
+#### 27 March 2026 — Kanta data completeness + auth alignment
+
+- [x] **`/api/sim/switch-mode` static reseed parity** — now reseeds `test_metadata`, monthly targets (`revenue_targets`, `numbers_targets`, `tests_targets`), `tat_targets`, `maintenance_schedule`, `qualitative_qc_configs`, and samples (`lab_racks`, `lab_samples`) before dataset load.
+- [x] **Tick auth candidates expanded** — `/api/sim/tick` now accepts `MAZRA_SIM_SECRET`, `CRON_SECRET`, `KANTA_CRON_SECRET`, and `NEXT_PUBLIC_MAZRA_SIM_SECRET` to match deployed env naming drift.
+- [x] **Dataset reload verified live** — baseline switch-mode now completes through telemetry/revenue/temp/QC inserts after Kanta telemetry schema alignment.
 
 #### Core engine & batch (legacy)
 

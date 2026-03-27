@@ -4,13 +4,16 @@ import { createMazraAdminClient } from "@/lib/mazra/supabase-admin";
 import { runTick } from "@/lib/sim/run-tick";
 
 function authorize(req: NextRequest): boolean {
-  const secret =
-    process.env.MAZRA_SIM_SECRET?.trim() ||
-    process.env.CRON_SECRET?.trim() ||
-    "";
   const auth = req.headers.get("authorization") ?? "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  return Boolean(secret && token === secret);
+  if (!token) return false;
+  const candidates = [
+    process.env.MAZRA_SIM_SECRET?.trim(),
+    process.env.CRON_SECRET?.trim(),
+    process.env.KANTA_CRON_SECRET?.trim(),
+    process.env.NEXT_PUBLIC_MAZRA_SIM_SECRET?.trim(),
+  ].filter(Boolean) as string[];
+  return candidates.includes(token);
 }
 
 function targetClient() {
@@ -24,7 +27,7 @@ function targetClient() {
 
 /**
  * GET / POST /api/sim/tick — real-time drip (Vercel Cron uses GET).
- * Bearer: MAZRA_SIM_SECRET or CRON_SECRET.
+ * Bearer: MAZRA_SIM_SECRET, CRON_SECRET, KANTA_CRON_SECRET, or NEXT_PUBLIC_MAZRA_SIM_SECRET.
  *
  * POST JSON (optional): { "facilityId": "<uuid>" }
  */

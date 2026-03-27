@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 const TABLES = [
   "qc_violations",
   "qualitative_qc_entries",
+  "qc_results",
   "qc_runs",
   "tat_breaches",
   "temp_breaches",
@@ -24,6 +25,9 @@ const TABLES = [
   "numbers_targets",
   "tests_targets",
   "tat_targets",
+  "tat_anomaly_flags",
+  "tat_anomaly_baselines",
+  "weekly_summaries",
 ] as const;
 
 export async function deleteMazraGeneratedForFacility(

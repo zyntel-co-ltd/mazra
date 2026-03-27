@@ -80,6 +80,8 @@ function buildEquipmentTelemetryForDay(opts: {
       equipment_id: null,
       section,
       test_name: testName,
+      // Compatibility with older Kanta schemas that require record_date.
+      record_date: fmtRday(relativeDay),
       tat_minutes: tatMinutes ?? 60,
       z_score: null,
       hour_of_day: hourOfDay,

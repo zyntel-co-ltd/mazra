@@ -7,6 +7,11 @@ import { isDatasetMode, MODE_CONFIGS } from "@/lib/sim/modes";
 import type { DatasetMode } from "@/lib/sim/modes/types";
 import { seedQualitativeQcConfigs } from "@/lib/sim/writers/qc-qualitative";
 import { writeUnmatchedTests } from "@/lib/sim/writers/unmatched-tests";
+import { seedTestMetadata } from "@/lib/sim/seeders/test-metadata";
+import { seedLabRacksAndSamples } from "@/lib/sim/seeders/samples";
+import { seedTargets, seedTatTargets } from "@/lib/sim/seeders/targets";
+import { seedMaintenanceSchedule } from "@/lib/sim/writers/maintenance";
+import { seededRng } from "@/lib/sim/rng-writer";
 
 function bearerToken(req: NextRequest): string {
   const auth = req.headers.get("authorization") ?? "";
@@ -93,7 +98,7 @@ export async function POST(req: NextRequest) {
 
   const { data: cfgRow, error: cfgErr } = await mazraDb
     .from("sim_config")
-    .select("dataset_date_offset_days")
+    .select("dataset_date_offset_days, seed_string")
     .eq("facility_id", facilityId)
     .maybeSingle();
 
@@ -102,6 +107,7 @@ export async function POST(req: NextRequest) {
   }
 
   const dateOffsetDays = Number(cfgRow?.dataset_date_offset_days ?? 0) || 0;
+  const seedString = String(cfgRow?.seed_string ?? "mazra-switch-mode-seed");
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -123,12 +129,28 @@ export async function POST(req: NextRequest) {
         send({ step: "loading", message: `Loading ${modeTyped} dataset…` });
 
         try {
+          await seedTestMetadata(targetDb, facilityId);
+          await seedTargets(targetDb, facilityId, seedString);
+          await seedTatTargets(targetDb, facilityId);
+          const maint = await seedMaintenanceSchedule(
+            targetDb,
+            facilityId,
+            seededRng(`${seedString}:maint:schedule`)
+          );
+          if (maint.error) {
+            throw new Error(`maintenance_schedule seed: ${maint.error}`);
+          }
           await seedQualitativeQcConfigs(targetDb, facilityId);
+          await seedLabRacksAndSamples(
+            targetDb,
+            facilityId,
+            seededRng(`${seedString}:samples`)
+          );
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           send({
             step: "error",
-            message: `qualitative_qc_configs seed: ${msg}`,
+            message: `static seed failed: ${msg}`,
           });
           controller.close();
           return;
