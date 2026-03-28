@@ -1,7 +1,25 @@
-# Mazra — Project Status
+# Mazra — Project Status & Functional Specification
 
-**Last updated:** 27 March 2026  
-**Repo:** `mazra` (Zyntel) — hospital data simulation engine
+**Last updated:** 2026-03-27  
+**Updated by:** Cursor  
+**Product type:** Internal + future SaaS — hospital simulation engine for Kanta-shaped data  
+**Production URL:** Vercel (see `vercel.json` crons)  
+**Repo:** https://github.com/zyntel-co-ltd/mazra  
+
+This document follows **`knowledge` → `zyntel-playbook/05-infrastructure/project-status-file.md`**. **Section 5** below summarizes core capabilities; the **Done** checklist remains the detailed engineering log.
+
+---
+
+## Document standard (sections map)
+
+| # | Section | In this file |
+|---|---------|--------------|
+| 1 | What This Product Is | [What This Project Is](#what-this-project-is) |
+| 2 | Current State | [Current State](#current-state), Done / Not done |
+| 3 | Stack | [Stack & Architecture](#stack--architecture), env vars |
+| 4 | Data Model | Control plane `sim_config`, `mazra_clients`, `sim_generation_log`; target = Kanta Supabase (see migrations) |
+| 5 | Features | [Features & Functionality](#5-features--functionality-complete-specification) |
+| 6–13 | Roles, integrations, API, issues, decisions, branches, run, Cursor | Partially inline below; expand as Mazra SaaS hardens |
 
 ---
 
@@ -33,7 +51,7 @@ datasets/README.md
 docs/MAZRA_PLAN.md
 ```
 
-## What This Project Is
+## 1. What This Product Is
 
 **Mazra** generates realistic, **deterministic** hospital operational data for demos and testing. **Control plane** = Mazra Supabase (`sim_config`, `mazra_clients`, `sim_generation_log`). **Target** = customer Kanta Supabase; writers use the service role and set **`mazra_generated: true`** so **reset** only removes synthetic rows.
 
@@ -43,7 +61,7 @@ Product plan: `docs/MAZRA_PLAN.md`. Dataset how-to: `datasets/README.md`.
 
 ---
 
-## Current State
+## 2. Current State
 
 **Status:** v2 mode library + full Kanta parity writers + legacy day engine  
 **Phase:** Switchable 180-day stories; admin mode cards; tick scales with active mode
@@ -115,7 +133,7 @@ Product plan: `docs/MAZRA_PLAN.md`. Dataset how-to: `datasets/README.md`.
 
 ---
 
-## Stack & Architecture
+## 3. Stack & Architecture
 
 | Layer | Technology | Notes |
 |-------|------------|--------|
@@ -137,6 +155,67 @@ Product plan: `docs/MAZRA_PLAN.md`. Dataset how-to: `datasets/README.md`.
 | `MAZRA_SIM_SECRET` / `CRON_SECRET` | `/api/sim/run`, `/api/sim/tick`, **`/api/sim/switch-mode`** |
 | `MAZRA_DATASET_FACILITY_ID` | Optional; embedded in **`scripts/build-dataset.ts`** output |
 | `MAZRA_SIM_TIMEZONE`, `MAZRA_TICK_MINUTES` | Tick behaviour |
+
+---
+
+## 4. Data Model
+
+**Control plane (Mazra Supabase):** `sim_config` (incl. `active_mode`, mode metadata, tick timestamps), `mazra_clients`, `sim_generation_log`, and related tables per `supabase/migrations/`.
+
+**Target plane (Kanta Supabase):** Full Kanta schema; synthetic rows carry **`mazra_generated: true`** (and compatible columns on extended tables — see Kanta migrations referenced in this repo’s docs).
+
+**Business rules:** Reset/delete paths remove synthetic data in FK-safe order; live hospital data must never be tagged `mazra_generated` in production use.
+
+---
+
+## 5. Features & Functionality (complete specification)
+
+### Feature: Day generation & writers (`runGeneration`)
+
+**Status:** ✅ Live  
+**Module:** Core simulation  
+**User:** Engineering / demo operators  
+
+**What it does:** Orchestrates synthetic inserts into the **target** Kanta database for TAT, revenue, equipment, fridges, QC, samples, alerts, telemetry, targets, etc., tagged with `mazra_generated`.
+
+**How it works (technical):** `runGeneration()` coordinates writers; `sim_generation_log` records row counts. `MAZRA_WRITE_TO_TARGET=1` enables target writes; `MAZRA_FACILITY_ID` scopes config.
+
+Key files:
+- `src/lib/sim/` — generators, orchestration
+- `src/app/api/sim/run/` — cron-friendly GET/POST
+
+**Business rules:**
+- Only rows marked `mazra_generated` are deleted by reset paths (FK-safe order).
+
+**What it does NOT do:**
+- Does not replace production clinical data governance policies on the Kanta side.
+
+---
+
+### Feature: Dataset mode switch (`/api/sim/switch-mode`)
+
+**Status:** ✅ Live  
+**Module:** v2 datasets  
+**User:** Admin / engineering  
+
+**What it does:** Wipes synthetic data, reseeds static prerequisites, loads a **compressed dataset** for the selected mode, optionally refreshes TAT anomaly baselines.
+
+**How it works (technical):** `POST /api/sim/switch-mode` with Bearer auth (`MAZRA_SIM_SECRET` / `CRON_SECRET` / variants). Uses `dataset-loader.ts` and `MODE_CONFIGS`.
+
+**Edge cases:**
+- Static reseed parity with Kanta schema (see latest changelog in this file).
+
+---
+
+### Feature: Live tick (`/api/sim/tick`)
+
+**Status:** ✅ Live  
+**Module:** Live simulation  
+**User:** Cron / Vercel  
+
+**What it does:** Drip-feeds simulation updates on a schedule (default **15 min**), reads `sim_config.active_mode`, promotes stale TAT rows toward resulted.
+
+**How it works (technical):** `GET/POST /api/sim/tick`; `MAZRA_SIM_TIMEZONE`, `MAZRA_TICK_MINUTES`.
 
 ---
 
