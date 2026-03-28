@@ -1,167 +1,123 @@
 ---
-description: Enforce PROJECT_STATUS.md update before any push or PR
+description: Enforce PROJECT_STATUS/ folder update before any push or PR
 alwaysApply: true
 ---
 
-# PROJECT_STATUS.md — Mandatory Update Gate
+# PROJECT_STATUS/ — Mandatory Update Gate
 
-This rule applies to **every session** in every Zyntel repo. It is not optional.
+This rule applies to every session in every Zyntel repo. It is not optional.
+
+The canonical standard lives in **`zyntel-playbook/05-infrastructure/project-status-file.md`** (knowledge repo) or `knowledge/zyntel-playbook/...` when working from another clone.
+
+---
+
+## On Session Start
+
+1. Read **`PROJECT_STATUS/START_HERE.md`** before writing any code.
+2. Before touching a feature, read **`PROJECT_STATUS/features/[relevant-module].md`** (or `features/app.md` for simple repos).
+3. If the `PROJECT_STATUS/` folder does not exist yet, create it using the templates in `project-status-file.md` and migrate any legacy root `PROJECT_STATUS.md` content into **`phase-log.md`**, then replace the root file with the two-line redirect.
 
 ---
 
 ## The Gate
 
-**Before this session ends — before any `git push`, before any PR is opened — you must update `PROJECT_STATUS.md`.**
+**Before this session ends — before any `git push`, before any PR — you must update the relevant file(s) under `PROJECT_STATUS/`.**
 
-This is not a suggestion. If you complete a task and do not update `PROJECT_STATUS.md`, the task is not done.
-
-The file must follow **`zyntel-playbook/05-infrastructure/project-status-file.md`** (13 sections: product narrative, build summary, stack + env vars, data model, **Section 5 feature blocks**, roles, integrations, API surface, issues, decisions, branches, run locally, Cursor context). In the **knowledge** repo, the playbook path is relative: `zyntel-playbook/05-infrastructure/project-status-file.md`.
+If you complete a task without updating the folder, the task is not done.
 
 ---
 
 ## What to Update, Based on What Changed
 
-### If you added or modified a feature:
-1. **Section 2 — Build summary:** Move the feature from `🔨 In progress` to `✅ Live`, or add it if it was untracked
-2. **Section 5 — Features & Functionality:** Add a complete feature block if it doesn't exist. Update the existing block if the feature changed. The block must include: what it does (user-facing), how it works (technical), key files, business rules, edge cases handled, scope boundaries
-3. **Section 9 — Active Issues:** Mark the Linear issue as complete or update its status
-4. **Section 11 — Branch State:** Update if a branch was created or merged
-5. **Top of file:** Update `Last updated` to today's date and `Updated by` to your name or "Cursor"
+**Feature added or modified:**
+- `PROJECT_STATUS/features/[module].md` — add or update the feature block (all six questions below)
+- `PROJECT_STATUS/START_HERE.md` — update build state table (🔨 → ✅ or new row) and `Last updated`
+- `PROJECT_STATUS/issues.md` — if a Linear issue changed state
 
-### If you changed the database schema:
-1. **Section 4 — Data Model:** Update the affected table documentation. Add new columns, remove deleted ones, update business rules
-2. **Section 2 — Build summary:** Update state of any module affected by the schema change
+**Schema changed:**
+- `PROJECT_STATUS/data-model.md` — affected table(s): columns, types, constraints, business rules
+- `PROJECT_STATUS/START_HERE.md` — if module state changed
 
-### If you added an API endpoint:
-1. **Section 8 — API Surface:** Add the new endpoint with method, path, auth, description, rate limit
+**New API endpoint (external or contract-critical):**
+- `PROJECT_STATUS/api.md` — method, path, auth, description, rate limit
 
-### If you added an integration:
-1. **Section 7 — Integrations:** Add the new integration row with all columns filled
+**New external integration:**
+- `PROJECT_STATUS/integrations.md` — system, connection, direction, purpose, fallback
 
-### If you changed a role or permission:
-1. **Section 6 — User Roles & Permissions:** Update the affected role row
+**Role or permission changed:**
+- `PROJECT_STATUS/roles.md` — affected role(s)
 
-### If you made an architectural decision:
-1. **Section 10 — Key Decisions Made:** Add a new row with the decision, outcome, reasoning, and date
+**Architectural decision:**
+- `PROJECT_STATUS/decisions.md` — append a new row (**never** edit existing rows)
 
-### Minimum update for any change (including typos, copy, or config):
-- Update `Last updated` at the top of the file
+**Phase or significant milestone completed:**
+- `PROJECT_STATUS/phase-log.md` — append a new entry (**never** rewrite past entries)
 
----
-
-## The Standard for Section 5 (Features)
-
-Every feature block must answer these questions completely:
-
-1. **What does the user see and do?** (user-facing description)
-2. **What does the system do in response?** (technical implementation)
-3. **Which files are involved?** (key file paths)
-4. **What rules does it enforce?** (business rules)
-5. **What are the edge cases?** (handled scenarios that aren't obvious)
-6. **What is explicitly out of scope?** (what it doesn't do)
-
-If any of these six questions cannot be answered from the existing Section 5 entry, the entry is incomplete. Complete it before pushing.
+**Minimum for any change (including typos, copy, config):**
+- `PROJECT_STATUS/START_HERE.md` — bump **`Last updated`**
 
 ---
 
-## Pre-Push Checklist (Run Through This Before `git push`)
+## The Six Questions (features/*.md Quality Bar)
+
+Every feature block must answer:
+
+1. What does the user see and do?
+2. What does the system do in response?
+3. Which files are involved? (key paths)
+4. What business rules does it enforce?
+5. What edge cases are handled?
+6. What is explicitly out of scope?
+
+If any question is unanswered, the block is incomplete. Complete it before pushing.
+
+---
+
+## Pre-Push Checklist
 
 ```
-[ ] Section 2 (Build summary) reflects the current state of every changed module
-[ ] Section 4 (Data model) is updated if schema changed
-[ ] Section 5 (Features) has a complete, accurate block for every added or changed feature
-[ ] Section 7 (Integrations) is updated if any new external connection was added
-[ ] Section 8 (API surface) is updated if any new endpoint was added
-[ ] Section 9 (Active issues) reflects current Linear issue state
-[ ] Section 10 (Key decisions) has a new row if an architectural decision was made
-[ ] Section 11 (Branch state) is accurate
-[ ] `Last updated` at the top reflects today's date
-[ ] The PROJECT_STATUS.md update is included in this commit — not a separate later commit
+[ ] PROJECT_STATUS/START_HERE.md — build state current, Last updated bumped
+[ ] PROJECT_STATUS/features/[module].md — complete feature block(s) for every changed feature
+[ ] PROJECT_STATUS/data-model.md — updated if schema changed
+[ ] PROJECT_STATUS/api.md — updated if new external-facing endpoint added
+[ ] PROJECT_STATUS/integrations.md — updated if new external system added
+[ ] PROJECT_STATUS/roles.md — updated if permissions changed
+[ ] PROJECT_STATUS/decisions.md — new row appended if architectural decision made
+[ ] PROJECT_STATUS/issues.md — Linear / blocker state current
+[ ] PROJECT_STATUS/phase-log.md — new entry appended if a named phase or milestone shipped
 ```
+
+---
+
+## Git Hook (Pre-Push)
+
+Add `.husky/pre-push` in Node repos to block pushes when nothing under `PROJECT_STATUS/` changed:
+
+```bash
+#!/bin/sh
+CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null | grep "PROJECT_STATUS")
+STAGED=$(git diff --cached --name-only | grep "PROJECT_STATUS")
+if [ -z "$CHANGED" ] && [ -z "$STAGED" ]; then
+  echo "PUSH BLOCKED: No PROJECT_STATUS file was updated."
+  echo "Update PROJECT_STATUS/START_HERE.md (at minimum) before pushing."
+  echo "See .cursor/rules/project-status-enforcement.mdc"
+  exit 1
+fi
+echo "PROJECT_STATUS updated — push allowed."
+exit 0
+```
+
+Install: `npm install -D husky && npx husky init`, then add the script to `.husky/pre-push`.  
+Bypass when genuinely needed: `git push --no-verify`.
+
+---
+
+## Claude Project Maintenance
+
+The files in **`PROJECT_STATUS/`** (except **`phase-log.md`**) are attached to the Claude Project for this repo. When files are updated in a push, re-attach the changed files before starting a new Claude session. **`phase-log.md`** is history — not attached to Claude.
 
 ---
 
 ## What "Complete Feature Documentation" Looks Like
 
-**Bad (what the old standard allowed):**
-
-```markdown
-- [x] QR scanning — Live
-```
-
-**Good (what this standard requires):**
-
-```markdown
-### Feature: QR Equipment Scan
-
-**Status:** ✅ Live  
-**Module:** Asset Management  
-**User:** Biomedical engineer, Lab technician
-
-**What it does:**  
-The user opens the Kanta mobile PWA, taps the scan icon, and points their phone camera 
-at a QR label attached to any registered piece of equipment. The system immediately 
-resolves the equipment record and logs a timestamped location/status event. The scan 
-takes under 2 seconds on a 3G connection.
-
-**How it works (technical):**  
-The QR code encodes `equipment_id + facility_id` as a URL (`kanta.app/scan/{equipment_id}`). 
-The PWA intercepts this URL, extracts the equipment_id, POSTs to `/api/v1/equipment/scan` 
-with the facility context from the auth session. The API writes a row to `equipment_events` 
-and returns the full equipment record for display.
-
-Key files:
-- `components/QRScanner.tsx` — camera interface, decoding via `html5-qrcode`
-- `app/api/v1/equipment/scan/route.ts` — scan ingest endpoint
-- `lib/db/equipment-events.ts` — database write logic
-
-**Business rules:**
-- Only authenticated users at the same facility as the scanned equipment can log a scan
-- A scan within 60 seconds of the previous scan for the same equipment is debounced (not written twice)
-- Unknown equipment_id (not registered at this facility) shows the "Unregistered Equipment" screen
-
-**Edge cases handled:**
-- Offline: scan is queued in IndexedDB and synced when connectivity is restored (via service worker)
-- QR label damaged and unreadable: fallback to manual equipment ID entry from the same screen
-- Equipment belongs to a different facility (QR code from another hospital): shows "Not registered at this facility" error, does not log
-
-**What it does NOT do:**
-- Does not update equipment location automatically — location must be confirmed by the user after scan
-- Does not trigger maintenance alerts directly — alerts are evaluated by a separate scheduled job
-
-**PostHog flag:** `show-qr-scanner` — default true (core feature, available on all tiers including free)
-```
-
-The difference: the bad version tells you a feature exists. The good version tells you everything you need to know to support, debug, or extend it.
-
----
-
-## Git Hook (Optional — Recommended)
-
-To enforce this at the git level, add this to `.husky/pre-push` in the repo:
-
-```bash
-#!/bin/sh
-CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null | grep "PROJECT_STATUS.md")
-STAGED=$(git diff --cached --name-only | grep "PROJECT_STATUS.md")
-
-if [ -z "$CHANGED" ] && [ -z "$STAGED" ]; then
-  echo "PUSH BLOCKED: PROJECT_STATUS.md has not been updated."
-  echo "Update PROJECT_STATUS.md before pushing."
-  echo "See .cursor/rules/project-status-enforcement.mdc for what to update."
-  exit 1
-fi
-
-echo "PROJECT_STATUS.md updated — push allowed."
-exit 0
-```
-
-This blocks the push if `PROJECT_STATUS.md` was not modified in the most recent commit. It can be bypassed with `--no-verify` when necessary.
-
-**To install Husky in a repo that doesn't have it:**
-
-```bash
-npm install --save-dev husky
-npx husky init
-# Then replace .husky/pre-push with the script above
-```
+See the **Good** example in the previous revision of this rule (QR Equipment Scan narrative) in `project-status-file.md` feature template — same quality bar inside `features/[module].md`.
