@@ -37,9 +37,9 @@ Thumbs.db
 # Supabase CLI local state
 supabase/.temp
 
-# Dataset build: keep .json.gz + metadata; ignore raw JSON debug output
-datasets/**/*.json
-!datasets/**/metadata.json
+# Mazra Hospital generated datasets (ENG-116) — large; regenerate locally
+datasets/*/
+!datasets/.gitkeep
 
 # Local AI codebase pack (Repomix; never commit)
 repomix-output.xml

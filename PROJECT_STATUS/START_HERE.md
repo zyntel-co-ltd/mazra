@@ -1,50 +1,53 @@
-# Mazra — Start Here
+# Mazra Hospital — Start Here
 
-**Last updated:** 2026-03-28  
-**Product type:** Simulation engine — realistic Kanta-shaped hospital data  
-**Status:** Active (v2 mode library + writers + tick)  
-**Production URL:** Vercel (see `vercel.json` crons)  
+**Last updated:** 2026-03-29  
+**Product type:** Standalone synthetic hospital database (Mazra-owned Supabase, REST + read-only Postgres)  
+**Status:** Architecture reset complete — legacy Kanta-target injector retired  
+**Production URL:** `mazra.dev` (Vercel)  
 **Repo:** github.com/zyntel-co-ltd/mazra  
 
 ---
 
-## What This Product Is
+## 1. What this product is
 
-**Mazra** generates deterministic synthetic hospital data for demos and testing. **Control plane:** Mazra Supabase (`sim_config`, clients, generation log). **Target:** customer Kanta Supabase; rows tagged `mazra_generated` for safe reset. **v2:** dataset modes under `datasets/<mode>/`, `switch-mode`, live **tick**.
+**Mazra Hospital** serves realistic, profile-scoped synthetic operational data (laboratory module first): patients, visits, orders, results, equipment telemetry, cold chain, QC, inventory, staff, alerts. Consumers integrate as **data clients**—not via migrations or flags in their own databases.
 
 ---
 
-## Current Build State
+## 2. Current build state
 
 | Module | State | Notes |
 |--------|-------|-------|
-| `runGeneration` / writers | ✅ Live | TAT, revenue, equipment, QC, samples, telemetry, … |
-| Dataset modes + `switch-mode` | ✅ Live | Bearer-protected API |
-| Live tick (`/api/sim/tick`) | ✅ Live | Cron / Vercel |
-| SaaS hardening | 📋 Planned | Webhooks, billing scaffold |
+| Legacy sim + target writers | **Retired** | Removed in Mazra Hospital v2 refactor |
+| Laboratory DDL | In progress | `supabase/migrations/*_mazra_hospital_*.sql` |
+| REST API / API keys | Planned | See `docs/MAZRA_HOSPITAL_PLAN.md` |
+| 12-month generators per profile | Planned | ENG-116+ |
+| Billing (Flutterwave) | Stub | No legacy `mazra_clients` coupling in app code |
+
+**Stack:** Next.js 16, TypeScript, Vercel. **Database:** Mazra’s Supabase Postgres only (`NEXT_PUBLIC_SUPABASE_*` for client if needed; `SUPABASE_*` service role server-side). Do **not** use `TARGET_SUPABASE_*` as the primary integration pattern—that belonged to the retired injector.
 
 ---
 
-## What's In This Folder
+## 3. What’s in this folder
 
 | File | Contents |
 |------|----------|
 | `START_HERE.md` | This file |
-| `stack.md` | Next.js, Supabase env, crons |
-| `data-model.md` | Control + target DB overview |
-| `features/app.md` | Feature blocks (expand) |
-| `phase-log.md` | **Full legacy spec + checklist** — not for Claude |
+| `stack.md` | Tooling notes (update as stack evolves) |
+| `data-model.md` | High-level model (update for hospital schema) |
+| `features/app.md` | Feature blocks |
+| `phase-log.md` | Historical milestones — archival |
 
 ---
 
-## Cursor
+## 4. Cursor
 
-- Read `features/app.md` before changing simulation code.
-- Append new milestones to `phase-log.md`; do not rewrite old entries.
-- **Target DB:** Kanta schema — coordinate with `../kanta`.
+- Read `docs/MAZRA_HOSPITAL_PLAN.md` before changing schema, APIs, or datasets.
+- Append new milestones to `phase-log.md`; do not erase history.
+- New SQL: prefix `mazra_hospital_` in migration filenames.
 
 ---
 
-## Claude Project
+## 5. Claude Project
 
-Attach all files here **except `phase-log.md`**.
+Attach `docs/MAZRA_HOSPITAL_PLAN.md`, `PROJECT_STATUS.md`, and `REFACTOR.md` for context.

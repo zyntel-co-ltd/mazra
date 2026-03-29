@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPayment } from "@/lib/billing/flutterwave";
 import { getMazraPublicSiteUrl } from "@/lib/billing/app-url";
-import { createMazraAdminClient } from "@/lib/mazra/supabase-admin";
 
 /**
  * Flutterwave redirect after Standard checkout.
@@ -29,25 +28,6 @@ export async function GET(req: NextRequest) {
 
   const verified = await verifyPayment(transactionId);
   if (!verified.ok || !verified.clientId) {
-    return NextResponse.redirect(fail);
-  }
-
-  try {
-    const db = createMazraAdminClient();
-    const { error } = await db
-      .from("mazra_clients")
-      .update({
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", verified.clientId);
-
-    if (error) {
-      console.error("billing confirm update:", error.message);
-      return NextResponse.redirect(fail);
-    }
-  } catch (e) {
-    console.error(e);
     return NextResponse.redirect(fail);
   }
 

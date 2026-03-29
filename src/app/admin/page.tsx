@@ -1,63 +1,35 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { createMazraAdminClient } from "@/lib/mazra/supabase-admin";
-import { MODE_CONFIGS } from "@/lib/sim/modes";
-import type { DatasetMode } from "@/lib/sim/modes/types";
-import type { SimConfigRow } from "@/lib/sim/sim-config";
-import { AdminShell } from "./AdminShell";
+import Link from "next/link";
 
-function getModeMetadata(mode: string): {
-  days?: number;
-  counts?: Record<string, number>;
-} | null {
-  try {
-    const p = path.join(process.cwd(), "datasets", mode, "metadata.json");
-    if (!fs.existsSync(p)) return null;
-    return JSON.parse(fs.readFileSync(p, "utf8")) as {
-      days?: number;
-      counts?: Record<string, number>;
-    };
-  } catch {
-    return null;
-  }
-}
-
-export default async function AdminPage({
-  searchParams,
-}: {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const sp = (await searchParams) ?? {};
-  const flash: Record<string, string> = {};
-  for (const [k, v] of Object.entries(sp)) {
-    flash[k] = Array.isArray(v) ? (v[0] ?? "") : (v ?? "");
-  }
-
-  const db = createMazraAdminClient();
-
-  const [{ data: configs }, { data: logs }] = await Promise.all([
-    db.from("sim_config").select("*").eq("sim_enabled", true),
-    db
-      .from("sim_generation_log")
-      .select("*")
-      .order("run_at", { ascending: false })
-      .limit(12),
-  ]);
-
-  const modesWithMeta = (
-    Object.entries(MODE_CONFIGS) as [DatasetMode, (typeof MODE_CONFIGS)[DatasetMode]][]
-  ).map(([key, cfg]) => ({
-    key,
-    cfg,
-    meta: getModeMetadata(key),
-  }));
-
+export default function AdminPage() {
   return (
-    <AdminShell
-      configs={(configs ?? []) as SimConfigRow[]}
-      logs={logs ?? []}
-      modesWithMeta={modesWithMeta}
-      flash={flash}
-    />
+    <main
+      className="mx-auto max-w-2xl px-6 py-16 text-slate-200"
+      style={{ fontFamily: "system-ui, sans-serif" }}
+    >
+      <p className="text-sm font-medium uppercase tracking-widest text-emerald-400/90">
+        Mazra Hospital
+      </p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">
+        Console (placeholder)
+      </h1>
+      <p className="mt-4 text-slate-400">
+        The legacy simulation control panel (mode switch, tick, Kanta-target
+        writes) has been removed. The operator console for API keys, profiles,
+        and usage will ship with the Mazra Hospital access layer.
+      </p>
+      <p className="mt-6 text-sm text-slate-500">
+        Spec:{" "}
+        <code className="rounded bg-slate-800 px-1.5 py-0.5 text-slate-300">
+          docs/MAZRA_HOSPITAL_PLAN.md
+        </code>{" "}
+        · Section 7 (Console surface).
+      </p>
+      <Link
+        href="/"
+        className="mt-10 inline-block text-emerald-400/90 underline-offset-4 hover:underline"
+      >
+        ← Home
+      </Link>
+    </main>
   );
 }

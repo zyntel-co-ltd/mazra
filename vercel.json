@@ -1,13 +1,4 @@
 {
   "framework": "nextjs",
-  "crons": [
-    {
-      "path": "/api/sim/run",
-      "schedule": "5 0 * * *"
-    },
-    {
-      "path": "/api/sim/tick",
-      "schedule": "*/15 * * * *"
-    }
-  ]
+  "crons": []
 }
