@@ -18,7 +18,8 @@ The legacy Kanta-target simulation stack (injector APIs, `src/lib/sim`, mode dat
 |------|--------|
 | Legacy injector (`/api/sim/*`, `/api/admin/*`, `src/lib/sim`, `datasets/<mode>/`) | **Legacy — removed** (git history preserved) |
 | Mazra Hospital schema (laboratory module) | Migrations under `supabase/migrations/*_mazra_hospital_*.sql` |
-| REST API + generators + CLI | Planned / follow-on issues |
+| REST API v1 (`/api/v1/*`) | **Live** — Bearer API key, tier limits, Upstash rate limits; control tables `mazra_api_keys`, `mazra_api_usage_log` |
+| Dataset generators + CLI | Generators shipped; CLI follow-on |
 
 **Stack (primary pattern):** Next.js 16 + TypeScript on Vercel; **Mazra-owned** Supabase (`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` for server-side only). Environment variables that pointed at a separate “target” consumer database are **not** part of the new architecture.
 
